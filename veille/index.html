@@ -94,6 +94,8 @@ textarea{resize:vertical;min-height:70px;width:100%}
 .g-prod{grid-template-columns:repeat(5,minmax(0,1fr))}
 .g-2{grid-template-columns:repeat(2,minmax(0,1fr))}
 .g-3-2{grid-template-columns:3fr 2fr}
+.g-lvl{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:820px){.g-lvl{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:1100px){.g-kpi,.g-prod{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:820px){.g-2,.g-3-2{grid-template-columns:minmax(0,1fr)}.g-kpi,.g-prod{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:440px){.g-kpi{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.g-prod{grid-template-columns:minmax(0,1fr)}}
@@ -207,6 +209,7 @@ details.fiche > summary{cursor:pointer}
     <a href="#prix" data-v="prix">Veille prix</a>
     <a href="#concurrence" data-v="concurrence">Veille concurrentielle</a>
     <a href="#base" data-v="base">Base de données</a>
+    <a href="#utilisateurs" data-v="utilisateurs" id="tabUsers" hidden>Utilisateurs</a>
   </div>
 </nav>
 
@@ -364,6 +367,36 @@ details.fiche > summary{cursor:pointer}
   </div>
   <div class="tablewrap"><table id="baseTable"></table></div>
   <p class="note" id="baseNote"></p>
+</div></section>
+
+<!-- ============ UTILISATEURS ============ -->
+<section class="view" id="v-utilisateurs" hidden><div class="wrap">
+  <div class="viewhead"><div><h2>Utilisateurs</h2><p>Comptes communs avec l'ERP Gestion commerciale. Ici, vous réglez l'accès de chacun au module Veille et vous créez les comptes des enquêteurs terrain.</p></div></div>
+  <div class="grid g-lvl" id="lvlLegend"></div>
+  <div class="grid">
+    <div class="card" style="min-width:0">
+      <h3>Comptes <span class="chip" id="uCount">0</span></h3>
+      <p class="sub">Le mot de passe et la suspension s'appliquent aussi à l'ERP Gestion commerciale. Le niveau d'accès ne concerne que la Veille.</p>
+      <div class="tablewrap"><table id="usersTable"><tbody><tr><td>Chargement…</td></tr></tbody></table></div>
+    </div>
+    <form class="card" id="newUserForm" novalidate style="max-width:720px">
+      <h3>Nouvel enquêteur</h3>
+      <p class="sub">Crée un compte qui n'ouvre que le module Veille (rôle « Enquêteur Veille marché » dans l'ERP).</p>
+      <div class="grid" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px">
+        <div class="field"><label for="nuPrenom">Prénom</label><input id="nuPrenom" autocomplete="off"></div>
+        <div class="field"><label for="nuNom">Nom</label><input id="nuNom" autocomplete="off" required></div>
+        <div class="field"><label for="nuUser">Identifiant de connexion</label><input id="nuUser" autocomplete="off" placeholder="ex. hamissou" required></div>
+        <div class="field"><label for="nuTel">Téléphone</label><input id="nuTel" inputmode="tel" autocomplete="off"></div>
+        <div class="field" style="grid-column:1/-1"><label for="nuMail">E-mail (facultatif)</label><input id="nuMail" type="email" autocomplete="off"></div>
+        <div class="field"><label for="nuNiveau">Accès Veille</label><select id="nuNiveau"><option value="saisie" selected>Saisie</option><option value="lecture">Consultation</option><option value="complet">Saisie + suppression</option></select></div>
+        <div class="field"><label for="nuPwd">Mot de passe provisoire</label><div style="display:flex;gap:6px"><input id="nuPwd" autocomplete="off" style="flex:1;min-width:0"><button class="btn ghost sm" type="button" id="nuGen">Générer</button></div></div>
+      </div>
+      <p class="note">L'enquêteur devra choisir son propre mot de passe à sa première connexion.</p>
+      <p class="err" id="nuErr" hidden></p>
+      <div id="nuDone"></div>
+      <div class="formactions"><button class="btn green" type="submit" id="nuBtn">Créer le compte</button></div>
+    </form>
+  </div>
 </div></section>
 </main>
 <div class="toast" id="toast" hidden></div>
@@ -789,10 +822,11 @@ async function exportCsv(){
 }
 
 /* ---------- Navigation & rendu ---------- */
-const VIEWS=["tableau","saisie","presence","prix","concurrence","base"];
-function current(){ const h=location.hash.slice(1); return VIEWS.includes(h)?h:"tableau"; }
+const VIEWS=["tableau","saisie","presence","prix","concurrence","base","utilisateurs"];
+function current(){ const h=location.hash.slice(1); if(h==="utilisateurs"&&!S.user?.droits?.gerer) return "tableau"; return VIEWS.includes(h)?h:"tableau"; }
 function show(){
   const v=current();
+  if(v==="utilisateurs") loadUsers();
   VIEWS.forEach(x=>$("v-"+x).hidden = x!==v);
   document.querySelectorAll("#tabs a").forEach(a=>a.classList.toggle("active",a.dataset.v===v));
   render();
@@ -816,6 +850,7 @@ function render(){
     else if(v==="prix") renderPrix();
     else if(v==="concurrence") renderConcurrence();
     else if(v==="base") renderBase();
+    else if(v==="utilisateurs"){ if(!USERS.length) loadUsers(); }
   }catch(e){ console.error(e); }
 }
 let rT; function scheduleRender(){ clearTimeout(rT); rT=setTimeout(()=>{ refreshLists(); render(); },60); }
@@ -845,12 +880,13 @@ function setUser(u){
   S.user=u; S.canWrite=!!u.droits?.ecrire; S.canEdit=!!u.droits?.supprimer;
   $("userName").textContent=[u.prenom,u.nom].filter(Boolean).join(" ")+(u.role_nom?" · "+u.role_nom:"");
   $("userBox").hidden=false;
-  $("writeNotice").innerHTML=S.canWrite?"":`<div class="notice">Votre profil (${esc(u.role_nom||"")}) est en lecture seule : vous consultez les données, la saisie est réservée au Responsable commercial.</div>`;
+  $("writeNotice").innerHTML=S.canWrite?"":`<div class="notice">Votre accès au module Veille est en consultation : vous voyez toutes les données mais ne pouvez pas saisir. Demandez à l'administrateur de passer votre accès en « Saisie ».</div>`;
+  $("tabUsers").hidden=!u.droits?.gerer;
   $("saveBtn").disabled=!S.canWrite; $("veilleForm").querySelector('button[type="submit"]').disabled=!S.canWrite;
 }
 function showApp(on){ $("app").hidden=!on; $("nav").hidden=!on; $("loginScreen").hidden=on; $("live").hidden=!on; }
 async function startSession(){
-  showApp(true); setLive("","Chargement des données…");
+  showApp(true); show(); setLive("","Chargement des données…");
   try{ await reload(); }catch(e){ setLive("off",e.message); }
   clearInterval(pollT); pollT=setInterval(()=>{ if(document.visibilityState==="visible"&&TOKEN) reload().catch(e=>setLive("off","Hors ligne · nouvel essai dans 30 s")); },30000);
 }
@@ -887,6 +923,59 @@ $("pCancel").addEventListener("click",()=>{ $("pwdForm").hidden=true; $("loginFo
 $("pwdBtn").addEventListener("click",()=>openPwd(false));
 $("logoutBtn").addEventListener("click",()=>logout());
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&TOKEN&&!$("app").hidden) reload().catch(()=>{}); });
+
+/* ---------- Utilisateurs ---------- */
+const NIV={aucun:"Aucun accès",lecture:"Consultation",saisie:"Saisie",complet:"Saisie + suppression"};
+const NIV_TXT={aucun:"Ne peut pas ouvrir le module Veille.",lecture:"Voit tout, ne saisit rien.",saisie:"Saisit des fiches et des actions concurrentes.",complet:"Saisit et peut supprimer des fiches."};
+$("lvlLegend").innerHTML=Object.keys(NIV).map(k=>`<div class="card kpi" style="padding:12px"><div class="lbl">${NIV[k]}</div><div class="hint">${NIV_TXT[k]}</div></div>`).join("");
+let USERS=[], usersBusy=false;
+async function loadUsers(){
+  if(usersBusy) return; usersBusy=true;
+  try{ const d=await api("users.list"); USERS=d.users; drawUsers(); }
+  catch(e){ $("usersTable").innerHTML=`<tbody><tr><td>${esc(e.message)}</td></tr></tbody>`; }
+  usersBusy=false;
+}
+function drawUsers(){
+  $("uCount").textContent=USERS.length;
+  const me=S.user?.id;
+  $("usersTable").innerHTML=`<thead><tr><th>Nom</th><th>Identifiant</th><th>Rôle ERP</th><th>Accès Veille</th><th>Statut</th><th>Dernière connexion</th><th></th></tr></thead><tbody>`+
+  USERS.map(u=>{ const self=u.id===me; const st=u.statut==="actif"?(u.verrouille?'<span class="chip warn">Verrouillé</span>':'<span class="chip good">Actif</span>'):'<span class="chip crit">Suspendu</span>';
+    return `<tr data-u="${esc(u.id)}"><td><b>${esc([u.prenom,u.nom].filter(Boolean).join(" "))}</b>${self?' <span class="chip ours">vous</span>':""}${u.must_change_password?'<div class="note">mot de passe provisoire</div>':""}</td>
+    <td>${esc(u.username)}</td><td>${esc(u.role_nom||"–")}</td>
+    <td><select data-niv aria-label="Accès Veille de ${esc(u.username)}" ${self?"disabled":""}>${Object.keys(NIV).map(k=>`<option value="${k}" ${k===u.niveau?"selected":""}>${NIV[k]}</option>`).join("")}</select>${u.defini?"":'<div class="note">selon le rôle ERP</div>'}</td>
+    <td>${st}</td><td class="num">${u.last_login?new Date(u.last_login).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"}):"jamais"}</td>
+    <td>${self?"":`<span class="confirmrow"><button class="btn ghost sm" type="button" data-pwd>Nouveau mot de passe</button><button class="btn ghost sm" type="button" data-st="${u.statut==="actif"?"suspendu":"actif"}">${u.statut==="actif"?"Suspendre":"Réactiver"}</button></span>
+      <div data-pwdbox hidden style="margin-top:6px;display:flex;gap:6px"><input data-pwdin placeholder="Mot de passe provisoire" style="width:170px"><button class="btn sm" type="button" data-pwdok>Valider</button></div>`}</td></tr>`; }).join("")+"</tbody>";
+}
+function genPwd(){ const L="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz", D="23456789"; let p="Oriba"; const r=new Uint32Array(5); crypto.getRandomValues(r); for(let i=0;i<4;i++) p+=D[r[i]%D.length]; return p+L[r[4]%L.length]; }
+$("nuGen").addEventListener("click",()=>{ $("nuPwd").value=genPwd(); });
+$("newUserForm").addEventListener("submit",async ev=>{
+  ev.preventDefault(); const e=$("nuErr"); e.hidden=true; $("nuDone").innerHTML="";
+  const u={prenom:$("nuPrenom").value,nom:$("nuNom").value,username:$("nuUser").value.trim(),telephone:$("nuTel").value,email:$("nuMail").value.trim(),niveau:$("nuNiveau").value,password:$("nuPwd").value};
+  $("nuBtn").disabled=true;
+  try{ await api("users.create",{user:u});
+    $("nuDone").innerHTML=`<div class="notice info">Compte créé. Communiquez à ${esc([u.prenom,u.nom].filter(Boolean).join(" "))} : identifiant <b>${esc(u.username)}</b>, mot de passe provisoire <b>${esc(u.password)}</b>, adresse <b>${esc(location.origin+location.pathname)}</b></div>`;
+    ["nuPrenom","nuNom","nuUser","nuTel","nuMail","nuPwd"].forEach(i=>$(i).value=""); await loadUsers(); }
+  catch(err){ e.textContent=err.message; e.hidden=false; }
+  $("nuBtn").disabled=false;
+});
+$("usersTable").addEventListener("change",async ev=>{
+  const sel=ev.target.closest("select[data-niv]"); if(!sel) return; const id=sel.closest("tr").dataset.u;
+  sel.disabled=true;
+  try{ await api("users.set_niveau",{id,niveau:sel.value}); toast("Accès mis à jour : "+NIV[sel.value]); await loadUsers(); }
+  catch(err){ toast(err.message); await loadUsers(); }
+});
+$("usersTable").addEventListener("click",async ev=>{
+  const tr=ev.target.closest("tr[data-u]"); if(!tr) return; const id=tr.dataset.u;
+  if(ev.target.closest("[data-pwd]")){ const b=tr.querySelector("[data-pwdbox]"); b.hidden=!b.hidden; if(!b.hidden){ const i=tr.querySelector("[data-pwdin]"); i.value=genPwd(); i.focus(); } return; }
+  if(ev.target.closest("[data-pwdok]")){ const p=tr.querySelector("[data-pwdin]").value;
+    try{ await api("users.reset_password",{id,password:p}); toast("Nouveau mot de passe provisoire : "+p); tr.querySelector("[data-pwdbox]").hidden=true; await loadUsers(); }
+    catch(err){ toast(err.message); } return; }
+  const st=ev.target.closest("[data-st]"); if(st){
+    if(!st.dataset.armed){ st.dataset.armed="1"; st.textContent="Confirmer ?"; st.classList.add("danger"); st.classList.remove("ghost"); setTimeout(()=>{ if(st.isConnected){ delete st.dataset.armed; st.textContent=st.dataset.st==="actif"?"Réactiver":"Suspendre"; st.classList.add("ghost"); st.classList.remove("danger"); } },4000); return; }
+    try{ await api("users.set_statut",{id,statut:st.dataset.st}); toast(st.dataset.st==="actif"?"Compte réactivé":"Compte suspendu"); await loadUsers(); }
+    catch(err){ toast(err.message); } }
+});
 
 /* ---------- Événements ---------- */
 window.addEventListener("hashchange",show);
