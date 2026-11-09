@@ -311,6 +311,10 @@ details.fiche > summary{cursor:pointer}
     <div class="card"><h3>Classement des marques</h3><p class="sub" id="pRankSub"></p><div class="chartbox tall"><canvas id="cRank"></canvas></div></div>
     <div class="card"><h3>Évolution mensuelle</h3><p class="sub">Nos produits face aux 3 premiers concurrents.</p><div class="chartbox tall"><canvas id="cEvo"></canvas></div></div>
   </div>
+  <div class="grid g-2">
+    <div class="card"><h3>Part de visibilité</h3><p class="sub">Part de chaque marque dans l'ensemble des citations (scores). Nos produits en couleur.</p><div class="chartbox"><canvas id="cPart"></canvas></div></div>
+    <div class="card"><h3>Nos produits par marché</h3><p class="sub">Taux de nos produits sur chaque marché, pour les filtres choisis.</p><div class="chartbox tall"><canvas id="cMk"></canvas></div></div>
+  </div>
   <div class="card"><h3>Carte de chaleur marché × marque</h3><p class="sub">Taux sur la période choisie. Plus la case est foncée, plus la marque est présente.</p><div class="tablewrap" style="max-height:520px"><table class="heat" id="heat"></table></div></div>
 </div></section>
 
@@ -618,6 +622,23 @@ function renderPresence(){
   o.scales.y.min=0; o.scales.y.max=100; o.scales.y.ticks.callback=v=>v+" %";
   o.plugins.tooltip.callbacks.label=c=>` ${c.dataset.label} : ${c.raw==null?"–":c.raw.toFixed(1).replace(".",",")+" %"}`;
   chart("cEvo",{type:"line",data:{labels:months.map(mLabel),datasets:ds},options:o});
+
+  // Part de visibilité (camembert)
+  const tot=rank.reduce((a,r)=>a+r.score,0);
+  const pv=[...rank].filter(r=>r.score>0).sort((a,b)=>isOurs(b.k)-isOurs(a.k)||b.score-a.score);
+  const ourPie=[tok("--purple"),tok("--leaf"),tok("--purple-2"),tok("--ring"),"#c07a12","#8fc062"], greys=["#c9c5d6","#b3aec2","#9e99b0","#8d879f","#7a748d","#dad7e3","#a49fb8","#bebac9"];
+  let io2=0,ic2=0;
+  const op=baseOpts(); delete op.scales; op.plugins.legend.display=true; op.plugins.legend.position="right"; op.plugins.legend.labels.boxWidth=12;
+  op.plugins.tooltip.callbacks.label=c=>` ${c.label} : ${tot?(c.raw/tot*100).toFixed(1).replace(".",","):0} % (${c.raw})`;
+  chart("cPart",{type:"doughnut",data:{labels:pv.map(r=>r.k),datasets:[{data:pv.map(r=>r.score),backgroundColor:pv.map(r=>isOurs(r.k)?ourPie[io2++%6]:greys[ic2++%8]),borderColor:tok("--surface"),borderWidth:2}]},options:{...op,cutout:"55%"}});
+  // Nos produits par marché
+  const ourBrands=[...new Set(rows.filter(r=>isOurs(r.marque)&&(seg==="BOUILLON"||f.fmt!=="TOUS"||/1L$/i.test(r.marque))).map(r=>r.marque))].slice(0,5);
+  const mks=[...new Set(rows.map(r=>r.fi.marche))].sort();
+  const pal=[tok("--purple"),tok("--leaf"),tok("--purple-2"),tok("--ring"),"#c07a12"];
+  const om=baseOpts(); om.indexAxis="y"; om.plugins.legend.display=true; om.plugins.legend.position="bottom"; om.scales.x.min=0; om.scales.x.max=100; om.scales.x.ticks.callback=v=>v+" %"; om.scales.y.grid={display:false};
+  om.plugins.tooltip.callbacks.label=c=>` ${c.dataset.label} : ${c.raw==null?"–":c.raw.toFixed(0)+" %"}`;
+  chart("cMk",{type:"bar",data:{labels:mks,datasets:ourBrands.map((b,i)=>{ const by=new Map(agg(rows.filter(r=>r.marque===b),r=>r.fi.marche).map(a=>[a.k,a.rate*100])); return {label:b,data:mks.map(m=>by.has(m)?by.get(m):null),backgroundColor:pal[i],borderRadius:3}; })},options:om});
+  $("cMk").parentElement.style.height=Math.max(320,mks.length*(ourBrands.length*9+10)+80)+"px";
 
   // Heatmap
   const cols=rank.slice(0,14).map(r=>r.k).sort((a,b)=>isOurs(b)-isOurs(a));
