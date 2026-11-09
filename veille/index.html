@@ -186,6 +186,15 @@ tbody tr:hover td{background:var(--surface-2)}
 .logo.big{height:auto;align-self:center;padding:6px 12px}
 .logo.big img{height:76px}
 .err{color:var(--crit);font-weight:600;font-size:.88rem;margin:0}
+.pie3d{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.pie3d canvas{width:100%;height:auto;display:block}
+.pie3d .pt{font-weight:700;font-size:.92rem;text-align:center}
+.plegend{display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:center;font-size:.76rem;color:var(--muted)}
+.plegend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.g-5{display:grid;gap:14px;grid-template-columns:repeat(5,minmax(0,1fr))}
+@media (max-width:1100px){.g-5{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:600px){.g-5{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:600px){.brandbar{position:static}#userName{display:none}.brandtitle h1{font-size:1.15rem}}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);align-items:center}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px}
 details.fiche > summary{cursor:pointer}
@@ -253,6 +262,11 @@ details.fiche > summary{cursor:pointer}
     <div class="card"><h3>Présence – segment bouillon <span class="chip PRESENCE">Tablette</span></h3><p class="sub">Taux de présence en points de vente. Nos produits en violet.</p><div class="chartbox"><canvas id="cDashB"></canvas></div></div>
     <div class="card"><h3>Présence – segment mayonnaise <span class="chip PRESENCE">Tous formats</span></h3><p class="sub">Taux de présence en points de vente. Nos produits en vert.</p><div class="chartbox"><canvas id="cDashM"></canvas></div></div>
   </div>
+  <div class="card"><h3>Nos produits : présents / absents <span class="chip PRESENCE">secteurs 3D</span></h3><p class="sub">Part des points de vente où chaque produit est trouvé, selon la zone et la période choisies.</p><div class="g-5" id="ourPies"></div></div>
+  <div class="grid g-2">
+    <div class="card"><h3>Part de visibilité – bouillon <span class="chip PRESENCE">secteurs 3D</span></h3><p class="sub">Part de chaque marque dans l'ensemble des citations.</p><div class="pie3d"><canvas id="p3B" width="600" height="340"></canvas><div class="plegend" id="p3BL"></div></div></div>
+    <div class="card"><h3>Part de visibilité – mayonnaise <span class="chip PRESENCE">secteurs 3D</span></h3><p class="sub">Part de chaque marque dans l'ensemble des citations.</p><div class="pie3d"><canvas id="p3M" width="600" height="340"></canvas><div class="plegend" id="p3ML"></div></div></div>
+  </div>
   <div class="grid g-3-2">
     <div class="card"><h3>Alertes marché <span class="chip" id="alertCount">0</span></h3><p class="sub">Marchés où un concurrent nous devance largement lors de la dernière visite.</p><ul class="list" id="alerts"></ul></div>
     <div class="card"><h3>Dernières remontées terrain</h3><p class="sub">Fiches reçues, en temps réel.</p><ul class="list" id="feed"></ul></div>
@@ -312,7 +326,7 @@ details.fiche > summary{cursor:pointer}
     <div class="card"><h3>Évolution mensuelle</h3><p class="sub">Nos produits face aux 3 premiers concurrents.</p><div class="chartbox tall"><canvas id="cEvo"></canvas></div></div>
   </div>
   <div class="grid g-2">
-    <div class="card"><h3>Part de visibilité</h3><p class="sub">Part de chaque marque dans l'ensemble des citations (scores). Nos produits en couleur.</p><div class="chartbox"><canvas id="cPart"></canvas></div></div>
+    <div class="card"><h3>Part de visibilité <span class="chip PRESENCE">secteurs 3D</span></h3><p class="sub">Part de chaque marque dans l'ensemble des citations (scores). Nos produits en couleur.</p><div class="pie3d"><canvas id="cPart3" width="600" height="340"></canvas><div class="plegend" id="cPart3L"></div></div><div style="margin-top:14px" class="chartbox short"><canvas id="cPart"></canvas></div></div>
     <div class="card"><h3>Nos produits par marché</h3><p class="sub">Taux de nos produits sur chaque marché, pour les filtres choisis.</p><div class="chartbox tall"><canvas id="cMk"></canvas></div></div>
   </div>
   <div class="card"><h3>Carte de chaleur marché × marque</h3><p class="sub">Taux sur la période choisie. Plus la case est foncée, plus la marque est présente.</p><div class="tablewrap" style="max-height:520px"><table class="heat" id="heat"></table></div></div>
@@ -497,6 +511,28 @@ function rankChart(id, rows, ourColor){
   chart(id,{type:"bar",data:{labels:rows.map(r=>r.k),datasets:[{data:rows.map(r=>r.rate*100),backgroundColor:rows.map(r=>isOurs(r.k)?ourColor:tok("--comp")),borderRadius:4,barPercentage:.8}]},options:o});
 }
 
+/* ---------- Secteurs 3D ---------- */
+function shade(hex,f){ const c=hex.trim().replace("#",""); const n=parseInt(c.length===3?c.split("").map(x=>x+x).join(""):c,16); const r=(n>>16)&255,g=(n>>8)&255,b=n&255; const m=v=>Math.max(0,Math.min(255,Math.round(v*f))); return `rgb(${m(r)},${m(g)},${m(b)})`; }
+function pie3d(canvas,items,legendEl,opts={}){
+  if(!canvas) return;
+  const W=canvas.width,H=canvas.height,ctx=canvas.getContext("2d"); ctx.clearRect(0,0,W,H);
+  const data=items.filter(i=>i.value>0), tot=data.reduce((a,i)=>a+i.value,0);
+  if(legendEl) legendEl.innerHTML=data.map(i=>`<span><i style="background:${i.color}"></i>${esc(i.label)} · ${tot?Math.round(i.value/tot*100):0} %</span>`).join("");
+  if(!tot){ ctx.fillStyle=tok("--muted"); ctx.font="600 18px Figtree, system-ui, sans-serif"; ctx.textAlign="center"; ctx.fillText("Aucune donnée",W/2,H/2); return; }
+  const rx=Math.min(W*0.46,H*0.82), ry=rx*0.5, depth=Math.max(10,rx*0.16), cx=W/2, cy=(H-depth)/2+2;
+  let a0=-Math.PI/2; const segs=data.map(i=>{ const a1=a0+i.value/tot*2*Math.PI; const sg={...i,a0,a1}; a0=a1; return sg; });
+  const wedge=(y,sg)=>{ ctx.beginPath(); ctx.moveTo(cx,y); ctx.ellipse(cx,y,rx,ry,0,sg.a0,sg.a1); ctx.closePath(); };
+  for(let d=depth; d>0; d--){ for(const sg of segs){ wedge(cy+d,sg); ctx.fillStyle=shade(sg.color,0.7); ctx.fill(); } }
+  ctx.lineWidth=1.2; ctx.strokeStyle="rgba(255,255,255,.65)";
+  for(const sg of segs){ wedge(cy,sg); ctx.fillStyle=sg.color; ctx.fill(); if(segs.length>1) ctx.stroke(); }
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  for(const sg of segs){ const p=(sg.a1-sg.a0)/(2*Math.PI); if(p<0.04) continue; const m=(sg.a0+sg.a1)/2;
+    const x=cx+Math.cos(m)*rx*0.64, y=cy+Math.sin(m)*ry*0.64; const txt=Math.round(p*100)+" %";
+    ctx.font=`700 ${opts.small?15:17}px Figtree, system-ui, sans-serif`; ctx.lineWidth=3; ctx.strokeStyle="rgba(0,0,0,.35)"; ctx.strokeText(txt,x,y); ctx.fillStyle="#fff"; ctx.fillText(txt,x,y); }
+}
+const OUR_COLS=()=>[tok("--purple"),tok("--leaf"),tok("--purple-2"),tok("--ring"),"#c07a12","#8fc062"], GREYS=["#c9c5d6","#b3aec2","#9e99b0","#8d879f","#7a748d","#dad7e3","#a49fb8","#bebac9","#d2cfdc","#948fa6"];
+function shareItems(rows){ const t=agg(rows,r=>r.marque).filter(r=>r.score>0).sort((a,b)=>isOurs(b.k)-isOurs(a.k)||b.score-a.score); let io=0,ic=0; const oc=OUR_COLS(); return t.map(r=>({label:r.k,value:r.score,color:isOurs(r.k)?oc[io++%6]:GREYS[ic++%GREYS.length]})); }
+
 /* ---------- Vue : Tableau de bord ---------- */
 function renderDashboard(){
   const zone=$("fZone").value||"TOUTES", mois=$("fMois").value||"TOUS";
@@ -542,6 +578,12 @@ function renderDashboard(){
 
   rankChart("cDashB", agg(lines({seg:"BOUILLON",type:"PRESENCE",zone,mois}),r=>r.marque).sort((a,b)=>b.rate-a.rate).slice(0,13), tok("--purple"));
   rankChart("cDashM", agg(lines({seg:"MAYONNAISE",type:"PRESENCE",zone,mois}),r=>r.marque).sort((a,b)=>b.rate-a.rate).slice(0,14), tok("--leaf"));
+  pie3d($("p3B"),shareItems(lines({seg:"BOUILLON",type:"PRESENCE",zone,mois})),$("p3BL"));
+  pie3d($("p3M"),shareItems(lines({seg:"MAYONNAISE",type:"PRESENCE",zone,mois})),$("p3ML"));
+  $("ourPies").innerHTML=OUR.map(p=>`<div class="pie3d"><div class="pt">${p.nom}</div><canvas id="op_${p.id}" width="320" height="200"></canvas><div class="plegend" id="opl_${p.id}"></div></div>`).join("");
+  OUR.forEach(p=>{ const rws=lines({seg:p.seg,type:"PRESENCE",zone,mois}).filter(r=>p.test(r.marque)&&(p.seg==="BOUILLON"||/1L$/i.test(r.marque)));
+    const sc=rws.reduce((a,r)=>a+r.score,0), ec=rws.reduce((a,r)=>a+r.ech,0);
+    pie3d($("op_"+p.id),ec?[{label:"Présent",value:Math.min(sc,ec),color:p.seg==="MAYONNAISE"?tok("--leaf"):tok("--purple")},{label:"Absent",value:Math.max(0,ec-sc),color:"#d9d6e3"}]:[],$("opl_"+p.id),{small:true}); });
 
   // Alertes
   const al=computeAlerts(zone);
@@ -630,6 +672,7 @@ function renderPresence(){
   let io2=0,ic2=0;
   const op=baseOpts(); delete op.scales; op.plugins.legend.display=true; op.plugins.legend.position="right"; op.plugins.legend.labels.boxWidth=12;
   op.plugins.tooltip.callbacks.label=c=>` ${c.label} : ${tot?(c.raw/tot*100).toFixed(1).replace(".",","):0} % (${c.raw})`;
+  pie3d($("cPart3"),shareItems(rows),$("cPart3L"));
   chart("cPart",{type:"doughnut",data:{labels:pv.map(r=>r.k),datasets:[{data:pv.map(r=>r.score),backgroundColor:pv.map(r=>isOurs(r.k)?ourPie[io2++%6]:greys[ic2++%8]),borderColor:tok("--surface"),borderWidth:2}]},options:{...op,cutout:"55%"}});
   // Nos produits par marché
   const ourBrands=[...new Set(rows.filter(r=>isOurs(r.marque)&&(seg==="BOUILLON"||f.fmt!=="TOUS"||/1L$/i.test(r.marque))).map(r=>r.marque))].slice(0,5);
