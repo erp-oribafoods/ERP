@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Figtree:wght@400;500;600;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 /* Layout: barre de marque violette + onglets modules ; contenu en grilles de cartes ; tout passe en une colonne sur téléphone */
 :root{
@@ -362,9 +363,10 @@ details.fiche > summary{cursor:pointer}
     <div class="filters">
       <div class="field"><label for="bType">Type</label><select id="bType"></select></div>
       <div class="field"><label for="bSearch">Recherche</label><input id="bSearch" placeholder="Marché, agent, zone…"></div>
-      <button class="btn" id="exportCsv" type="button">Exporter (CSV Excel)</button>
+      <button class="btn green" id="importBtn" type="button">Importer le fichier Excel</button><input type="file" id="importFile" accept=".xlsx,.xls" hidden><button class="btn ghost" id="exportCsv" type="button">Télécharger la base Excel</button>
     </div>
   </div>
+  <div id="importResult"></div>
   <div class="tablewrap"><table id="baseTable"></table></div>
   <p class="note" id="baseNote"></p>
 </div></section>
@@ -809,17 +811,102 @@ async function saveVeille(ev){
 }
 
 /* ---------- Export CSV ---------- */
-async function exportCsv(){
-  const sep=";"; const q=v=>{ const s=String(v??""); return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
-  const rows=[["Date","Type","Segment","Zone","Marché","Agent","Échantillon","Marque / produit","Format","Score","Taux %","Prix grossiste","Prix 1/2 gros","Vente détaillant","Prix consommateur","Notre produit","Source"]];
-  for(const f of [...S.fiches].sort((a,b)=>String(a.date).localeCompare(String(b.date))))
-    for(const l of f.lignes||[]) rows.push([fmtDate(f.date),TYPES[f.type],f.segment,f.zone,f.marche,f.agent,f.echantillon??"",l.marque||l.produit,l.format||"",l.score??"",
-      f.echantillon&&l.score!=null?String(Math.round(l.score/f.echantillon*1000)/10).replace(".",","):"",l.prixGros??"",l.prixDemiGros??"",l.prixDetail??"",l.prixConso??"",isOurs(l.marque||l.produit)?"OUI":"NON",f.source==="import"?"Excel":"Terrain"]);
-  const csv="﻿"+rows.map(r=>r.map(q).join(sep)).join("\r\n");
-  const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
-  const a=document.createElement("a"); a.href=url; a.download=`oriba-enquetes-${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),2000); toast("Export téléchargé");
+/* ---------- Excel : export & import ---------- */
+const xDate=d=>{ if(!d) return null; const [y,m,j]=d.split("-").map(Number); return new Date(y,m-1,j,12); };
+function sheetOf(rows,widths){ const ws=XLSX.utils.aoa_to_sheet(rows,{cellDates:true,dateNF:"dd/mm/yyyy"}); ws["!cols"]=widths.map(w=>({wch:w})); ws["!autofilter"]={ref:ws["!ref"]}; return ws; }
+function exportCsv(){
+  if(!window.XLSX){ toast("Le module Excel n'a pas pu se charger. Vérifiez votre connexion."); return; }
+  const E=[["DATE","TYPE D'ÉTUDE","SEGMENT","ZONE","MARCHÉ","AGENT","ÉCHANTILLON","MARQUE","FORMAT","SCORE","TAUX","NOTRE PRODUIT","OBSERVATIONS"]];
+  const P=[["DATE","SEGMENT","ZONE","MARCHÉ","AGENT","PRODUIT","POIDS (g)","QTÉ / CARTON","PRIX GROSSISTE","PRIX ½ GROS","VENTE DÉTAILLANT","PRIX CONSOMMATEUR","MARGE GROSSISTE","MARGE BOUTIQUE","NOTRE PRODUIT"]];
+  const A=[["DATE","MARCHÉ","MARQUE CONCURRENTE","CATÉGORIE","IMPACT","SIGNALÉ PAR","DESCRIPTION"]];
+  const F=[...S.fiches].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.marche).localeCompare(String(b.marche)));
+  for(const f of F){
+    if(f.type==="PRIX"){ for(const l of f.lignes||[]){ const g=+l.prixGros||null,d=+l.prixDemiGros||null,r=+l.prixDetail||null;
+      P.push([xDate(f.date),f.segment,f.zone,f.marche,f.agent,l.produit,l.poids??null,l.qtyCtn??null,g,d,r,l.prixConso??null,g&&d?Math.round((d-g)/g*1000)/1000:null,d&&r?Math.round((r-d)/d*1000)/1000:null,isOurs(l.produit)?"OUI":"NON"]); } }
+    else for(const l of f.lignes||[]) E.push([xDate(f.date),f.type,f.segment,f.zone,f.marche,f.agent,f.echantillon,l.marque,l.format||"",l.score,f.echantillon?Math.round(Math.min(1,l.score/f.echantillon)*1000)/1000:null,isOurs(l.marque)?"OUI":"NON",f.observations||""]);
+  }
+  for(const v of [...S.veille].sort((a,b)=>String(a.date).localeCompare(String(b.date)))) A.push([xDate(v.date),v.marche||"",v.marque,v.categorie,v.impact,v.agent||"",v.description]);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,sheetOf(E,[12,15,14,13,20,13,13,24,11,10,10,12,40]),"ENQUETES");
+  XLSX.utils.book_append_sheet(wb,sheetOf(P,[12,14,12,16,16,30,10,11,14,13,15,15,14,14,12]),"PRIX");
+  XLSX.utils.book_append_sheet(wb,sheetOf(A,[12,18,20,26,10,16,70]),"ACTIONS CONCURRENCE");
+  XLSX.writeFile(wb,`BASE_VEILLE_ENQUETES_ORIBA_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast("Base Excel téléchargée");
 }
+const hnorm=h=>norm(h).replace(/[^A-Z0-9/]+/g," ").trim();
+function cellDate(v){
+  if(v==null||v==="") return null;
+  if(typeof v==="number"){ const p=XLSX.SSF.parse_date_code(v); if(!p) return null; return `${p.y}-${String(p.m).padStart(2,"0")}-${String(p.d).padStart(2,"0")}`; }
+  const t=String(v).trim(); let m=t.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/); if(m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  m=t.match(/^(\d{4})-(\d{2})-(\d{2})/); return m?`${m[1]}-${m[2]}-${m[3]}`:"invalide";
+}
+const numv=v=>{ if(v==null||v==="") return null; const n=typeof v==="number"?v:Number(String(v).replace(/\s|F|FCFA/gi,"").replace(",",".")); return isNaN(n)?NaN:n; };
+function readSheet(wb,needle){
+  const name=wb.SheetNames.find(n=>hnorm(n).includes(needle)); if(!name) return null;
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true,defval:null,blankrows:false});
+  const head=(rows[0]||[]).map(h=>hnorm(h||""));
+  const col=(...names)=>{ for(const n of names){ const i=head.indexOf(n); if(i>=0) return i; } return -1; };
+  return {name,rows:rows.slice(1).map((r,i)=>({r,ligne:i+2})),col};
+}
+function parseWorkbook(wb){
+  const fiches=new Map(), actions=[], errs=[];
+  const E=readSheet(wb,"ENQUETE");
+  if(E){ const c={d:E.col("DATE"),t:E.col("TYPE D ETUDE","TYPE ETUDE","ETUDE","TYPE"),s:E.col("SEGMENT","NATURE PRODUIT"),z:E.col("ZONE"),m:E.col("MARCHE"),a:E.col("AGENT"),e:E.col("ECHANTILLON"),b:E.col("MARQUE"),f:E.col("FORMAT"),sc:E.col("SCORE"),o:E.col("OBSERVATIONS")};
+    for(const {r,ligne} of E.rows){ const g=k=>c[k]>=0?r[c[k]]:null;
+      if(!g("b")&&(g("sc")==null||g("sc")==="")) continue;
+      const date=cellDate(g("d")); if(!date||date==="invalide"){ errs.push(`${E.name} ligne ${ligne} : date manquante ou illisible`); continue; }
+      const sc=numv(g("sc")); if(sc==null||isNaN(sc)){ errs.push(`${E.name} ligne ${ligne} : score manquant`); continue; }
+      const key=[date,norm(g("t")),norm(g("s")),norm(g("m")),norm(g("a"))].join("|");
+      if(!fiches.has(key)) fiches.set(key,{ref:`${E.name} ligne ${ligne}`,date,type:norm(g("t")),segment:norm(g("s")),zone:norm(g("z")),marche:norm(g("m")),agent:norm(g("a")),echantillon:numv(g("e")),observations:[],lignes:[]});
+      const F=fiches.get(key); if(!F.echantillon) F.echantillon=numv(g("e")); const o=String(g("o")||"").trim(); if(o&&!F.observations.includes(o)) F.observations.push(o);
+      F.lignes.push({marque:norm(g("b")),format:String(g("f")||"").trim(),score:sc}); } }
+  const P=readSheet(wb,"PRIX");
+  if(P){ const c={d:P.col("DATE"),s:P.col("SEGMENT"),z:P.col("ZONE","VILLE"),m:P.col("MARCHE"),a:P.col("AGENT"),p:P.col("PRODUIT","PRODUCT DESCRIPTION"),w:P.col("POIDS G","POIDS"),q:P.col("QTE / CARTON","QTY/CTN","QTE CARTON"),g:P.col("PRIX GROSSISTE"),h:P.col("PRIX 1 2 GROS","PRIX 1/2 GROS","PRIX GROS"),r:P.col("VENTE DETAILLANT"),cs:P.col("PRIX CONSOMMATEUR")};
+    if(c.h<0){ const hh=P.rows.length?null:null; }
+    for(const {r,ligne} of P.rows){ const g=k=>c[k]>=0?r[c[k]]:null;
+      if(!g("p")) continue; if(numv(g("g"))==null&&numv(g("cs"))==null) continue;
+      const date=cellDate(g("d")); if(!date||date==="invalide"){ errs.push(`${P.name} ligne ${ligne} : date manquante ou illisible`); continue; }
+      const seg=norm(g("s"))||(/MAYO/i.test(g("p"))?"MAYONNAISE":"BOUILLON");
+      const key=[date,"PRIX",seg,norm(g("m")),norm(g("a"))].join("|");
+      if(!fiches.has(key)) fiches.set(key,{ref:`${P.name} ligne ${ligne}`,date,type:"PRIX",segment:seg,zone:norm(g("z")),marche:norm(g("m")),agent:norm(g("a"))||"NON RENSEIGNE",echantillon:null,observations:[],lignes:[]});
+      const v=k=>{ const n=numv(g(k)); return n==null||isNaN(n)?null:n; };
+      fiches.get(key).lignes.push({produit:norm(g("p")),poids:v("w"),qtyCtn:v("q"),prixGros:v("g"),prixDemiGros:v("h"),prixDetail:v("r"),prixConso:v("cs")}); } }
+  const AC=readSheet(wb,"ACTION");
+  if(AC){ const c={d:AC.col("DATE"),m:AC.col("MARCHE"),b:AC.col("MARQUE CONCURRENTE","MARQUE"),k:AC.col("CATEGORIE"),i:AC.col("IMPACT"),a:AC.col("SIGNALE PAR","AGENT"),x:AC.col("DESCRIPTION")};
+    for(const {r,ligne} of AC.rows){ const g=k=>c[k]>=0?r[c[k]]:null; if(!g("b")&&!g("x")) continue;
+      const date=cellDate(g("d")); if(!date||date==="invalide"){ errs.push(`${AC.name} ligne ${ligne} : date manquante ou illisible`); continue; }
+      const cat=VEILLE_CATS.find(v=>norm(v)===norm(g("k")))||"Autre"; const imp=["Faible","Moyen","Fort"].find(v=>norm(v)===norm(g("i")))||"Moyen";
+      actions.push({ref:`${AC.name} ligne ${ligne}`,date,marche:norm(g("m")),marque:norm(g("b")),categorie:cat,impact:imp,agent:norm(g("a")),description:String(g("x")||"").trim()}); } }
+  const list=[...fiches.values()].map(f=>({...f,observations:f.observations.join(" / ")}));
+  return {fiches:list,actions,errs,trouve:!!(E||P||AC)};
+}
+async function importExcel(file){
+  const box=$("importResult");
+  if(!window.XLSX){ box.innerHTML=`<div class="notice">Le module Excel n'a pas pu se charger. Vérifiez votre connexion puis rechargez la page.</div>`; return; }
+  box.innerHTML=`<div class="notice info">Lecture de « ${esc(file.name)} »…</div>`;
+  let parsed;
+  try{ const wb=XLSX.read(await file.arrayBuffer(),{type:"array"}); parsed=parseWorkbook(wb); }
+  catch(e){ box.innerHTML=`<div class="notice">Impossible de lire ce fichier : ${esc(e.message)}</div>`; return; }
+  if(!parsed.trouve){ box.innerHTML=`<div class="notice">Aucun onglet ENQUETES, PRIX ou ACTIONS CONCURRENCE dans ce fichier. Utilisez le modèle « Base Veille & Enquêtes ».</div>`; return; }
+  const tot={ajoutees:0,mises_a_jour:0,inchangees:0,deja_saisies:0,actions_ajoutees:0,actions_existantes:0,erreurs:[]};
+  const F=parsed.fiches, A=parsed.actions, N=Math.max(Math.ceil(F.length/80),A.length?1:0,1);
+  try{
+    for(let i=0;i<N;i++){
+      box.innerHTML=`<div class="notice info">Envoi dans l'ERP… ${Math.round(i/N*100)} %</div>`;
+      const r=await api("import.excel",{fichier:file.name,fiches:F.slice(i*80,(i+1)*80),actions:i===0?A.slice(0,300):[]});
+      for(const k of Object.keys(tot)) if(k==="erreurs") tot.erreurs.push(...r.erreurs); else tot[k]+=r[k];
+    }
+  }catch(e){ box.innerHTML=`<div class="notice">Import interrompu : ${esc(e.message)}</div>`; return; }
+  await reload();
+  const errs=parsed.errs.concat(tot.erreurs.map(e=>`${e.ref} : ${e.erreur}`));
+  box.innerHTML=`<div class="card" style="margin-bottom:12px"><h3>Import terminé : ${esc(file.name)}</h3>
+    <div class="grid g-kpi" style="margin-top:10px">${[["Nouvelles fiches",tot.ajoutees],["Fiches corrigées",tot.mises_a_jour],["Déjà à jour",tot.inchangees],["Actions concurrentes ajoutées",tot.actions_ajoutees],["Lignes en erreur",errs.length]].map(x=>`<div class="kpi"><div class="lbl">${x[0]}</div><div class="val num" style="font-size:1.6rem">${x[1]}</div></div>`).join("")}</div>
+    ${tot.deja_saisies?`<p class="note">${tot.deja_saisies} visite(s) du fichier existent déjà comme fiches saisies sur la plateforme : elles n'ont pas été modifiées.</p>`:""}
+    ${errs.length?`<details style="margin-top:8px"><summary><b>Voir les lignes à corriger (${errs.length})</b></summary><ul>${errs.slice(0,200).map(e=>`<li>${esc(e)}</li>`).join("")}</ul></details>`:""}</div>`;
+  toast(`Import : ${tot.ajoutees} nouvelles fiches, ${tot.mises_a_jour} corrigées`);
+}
+$("importBtn").addEventListener("click",()=>{ if(!S.canWrite){ toast("Votre accès est en consultation : import non autorisé."); return; } $("importFile").value=""; $("importFile").click(); });
+$("importFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) importExcel(f); });
 
 /* ---------- Navigation & rendu ---------- */
 const VIEWS=["tableau","saisie","presence","prix","concurrence","base","utilisateurs"];
