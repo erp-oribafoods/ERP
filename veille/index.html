@@ -195,6 +195,10 @@ tbody tr:hover td{background:var(--surface-2)}
 @media (max-width:1100px){.g-5{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:600px){.g-5{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:600px){.brandbar{position:static}#userName{display:none}.brandtitle h1{font-size:1.15rem}}
+.hello{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--purple-soft);border:1px solid var(--line);border-left:6px solid var(--leaf);border-radius:14px;padding:14px 18px}
+.hello b{display:block;font-family:var(--f-display);font-size:1.6rem;color:var(--purple);line-height:1.15}
+.hello span{color:var(--muted);font-size:.92rem}
+.hello .hdate{font-weight:600;color:var(--ink)}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);align-items:center}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px}
 details.fiche > summary{cursor:pointer}
@@ -246,6 +250,7 @@ details.fiche > summary{cursor:pointer}
 <main id="app" hidden>
 <!-- ============ TABLEAU DE BORD ============ -->
 <section class="view" id="v-tableau"><div class="wrap">
+  <div class="hello" id="hello"><div><b id="helloTxt">Bonjour</b><span id="helloSub"></span></div><span class="hdate" id="helloDate"></span></div>
   <div class="viewhead">
     <div><h2>Tableau de bord</h2><p>Situation de nos 5 produits sur le marché, mise à jour à chaque fiche enregistrée par les agents.</p></div>
     <div class="filters">
@@ -1024,6 +1029,7 @@ const mapF=f=>({...f,_id:f.id,createdAt:f.created_at});
 async function reload(){
   const d=await api("data.load");
   S.fiches=d.fiches.map(mapF); S.veille=d.actions.map(mapF); S.loaded=true;
+  if(S.user) setHello(S.user);
   setLive("on",`À jour · ${S.fiches.length} fiches · ${new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}`);
   scheduleRender();
 }
@@ -1033,6 +1039,7 @@ function setUser(u){
   $("userBox").hidden=false;
   $("writeNotice").innerHTML=S.canWrite?"":`<div class="notice">Votre accès au module Veille est en consultation : vous voyez toutes les données mais ne pouvez pas saisir. Demandez à l'administrateur de passer votre accès en « Saisie ».</div>`;
   $("tabUsers").hidden=!u.droits?.gerer;
+  setHello(u);
   $("saveBtn").disabled=!S.canWrite; $("veilleForm").querySelector('button[type="submit"]').disabled=!S.canWrite;
 }
 function showApp(on){ $("app").hidden=!on; $("nav").hidden=!on; $("loginScreen").hidden=on; $("live").hidden=!on; }
@@ -1074,6 +1081,16 @@ $("pCancel").addEventListener("click",()=>{ $("pwdForm").hidden=true; $("loginFo
 $("pwdBtn").addEventListener("click",()=>openPwd(false));
 $("logoutBtn").addEventListener("click",()=>logout());
 document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"&&TOKEN&&!$("app").hidden) reload().catch(()=>{}); });
+
+/* ---------- Mot de bienvenue ---------- */
+function setHello(u){
+  const h=new Date().getHours(), nom=(u.prenom||u.nom||u.username||"").trim();
+  const salut=h<12?"Bonjour":h<18?"Bon après-midi":"Bonsoir";
+  $("helloTxt").textContent=`${salut} ${nom} 👋`;
+  const n=S.fiches.length;
+  $("helloSub").textContent=(S.canWrite?"Bienvenue sur la Veille & Enquêtes Oriba Foods. ":"Bienvenue sur la Veille & Enquêtes Oriba Foods (consultation). ")+(n?`${n} fiches d'enquête disponibles.`:"");
+  $("helloDate").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).replace(/^./,c=>c.toUpperCase());
+}
 
 /* ---------- Utilisateurs ---------- */
 const NIV={aucun:"Aucun accès",lecture:"Consultation",saisie:"Saisie",complet:"Saisie + suppression"};
