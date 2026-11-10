@@ -264,10 +264,10 @@ details.fiche > summary{cursor:pointer}
     <div class="grid g-prod" id="prodCards"></div>
   </div>
   <div class="grid g-2">
-    <div class="card"><h3>Présence – segment bouillon <span class="chip PRESENCE">Tablette</span></h3><p class="sub">Taux de présence en points de vente. Nos produits en violet.</p><div class="chartbox"><canvas id="cDashB"></canvas></div></div>
-    <div class="card"><h3>Présence – segment mayonnaise <span class="chip PRESENCE">Tous formats</span></h3><p class="sub">Taux de présence en points de vente. Nos produits en vert.</p><div class="chartbox"><canvas id="cDashM"></canvas></div></div>
+    <div class="card"><h3>Présence – segment bouillon <span class="chip PRESENCE">Tablette</span></h3><p class="sub">Part de chaque marque dans les citations (total = 100 %). Nos produits en violet.</p><div class="chartbox"><canvas id="cDashB"></canvas></div></div>
+    <div class="card"><h3>Présence – segment mayonnaise <span class="chip PRESENCE">Tous formats</span></h3><p class="sub">Part de chaque marque dans les citations (total = 100 %). Nos produits en vert.</p><div class="chartbox"><canvas id="cDashM"></canvas></div></div>
   </div>
-  <div class="card"><h3>Nos produits : présents / absents <span class="chip PRESENCE">secteurs 3D</span></h3><p class="sub">Part des points de vente où chaque produit est trouvé, selon la zone et la période choisies.</p><div class="g-5" id="ourPies"></div></div>
+  <div class="card"><h3>Part de nos produits <span class="chip PRESENCE">secteurs 3D</span></h3><p class="sub">Part de chaque produit face à toutes les autres marques de son segment (total = 100 %).</p><div class="g-5" id="ourPies"></div></div>
   <div class="grid g-2">
     <div class="card"><h3>Part de visibilité – bouillon <span class="chip PRESENCE">secteurs 3D</span></h3><p class="sub">Part de chaque marque dans l'ensemble des citations.</p><div class="pie3d"><canvas id="p3B" width="600" height="340"></canvas><div class="plegend" id="p3BL"></div></div></div>
     <div class="card"><h3>Part de visibilité – mayonnaise <span class="chip PRESENCE">secteurs 3D</span></h3><p class="sub">Part de chaque marque dans l'ensemble des citations.</p><div class="pie3d"><canvas id="p3M" width="600" height="340"></canvas><div class="plegend" id="p3ML"></div></div></div>
@@ -280,7 +280,7 @@ details.fiche > summary{cursor:pointer}
 
 <!-- ============ SAISIE ============ -->
 <section class="view" id="v-saisie" hidden><div class="wrap">
-  <div class="viewhead"><div><h2>Saisie terrain</h2><p>Une fiche = une visite de marché. Le taux se calcule tout seul : nombre de points de vente où la marque est trouvée ÷ échantillon.</p></div></div>
+  <div class="viewhead"><div><h2>Saisie terrain</h2><p>Une fiche = une visite de marché. La part se calcule toute seule : note de la marque ÷ total des notes de toutes les marques. Le total fait toujours 100 %.</p></div></div>
   <div id="writeNotice"></div>
   <div class="typepick" id="typePick">
     <button type="button" data-t="PRESENCE" aria-pressed="true"><b>Étude de présence</b><span>Marques trouvées en boutique</span></button>
@@ -332,9 +332,9 @@ details.fiche > summary{cursor:pointer}
   </div>
   <div class="grid g-2">
     <div class="card"><h3>Part de visibilité <span class="chip PRESENCE">secteurs 3D</span></h3><p class="sub">Part de chaque marque dans l'ensemble des citations (scores). Nos produits en couleur.</p><div class="pie3d"><canvas id="cPart3" width="600" height="340"></canvas><div class="plegend" id="cPart3L"></div></div><div style="margin-top:14px" class="chartbox short"><canvas id="cPart"></canvas></div></div>
-    <div class="card"><h3>Nos produits par marché</h3><p class="sub">Taux de nos produits sur chaque marché, pour les filtres choisis.</p><div class="chartbox tall"><canvas id="cMk"></canvas></div></div>
+    <div class="card"><h3>Nos produits par marché</h3><p class="sub">Part de nos produits sur chaque marché, pour les filtres choisis.</p><div class="chartbox tall"><canvas id="cMk"></canvas></div></div>
   </div>
-  <div class="card"><h3>Carte de chaleur marché × marque</h3><p class="sub">Taux sur la période choisie. Plus la case est foncée, plus la marque est présente.</p><div class="tablewrap" style="max-height:520px"><table class="heat" id="heat"></table></div></div>
+  <div class="card"><h3>Carte de chaleur marché × marque</h3><p class="sub">Part (en %) de chaque marque sur chaque marché. Chaque ligne fait 100 % au total.</p><div class="tablewrap" style="max-height:520px"><table class="heat" id="heat"></table></div></div>
 </div></section>
 
 <!-- ============ PRIX ============ -->
@@ -485,7 +485,22 @@ function lines(f={}){
 function agg(rows,key){
   const m=new Map();
   for(const r of rows){ const k=key(r); const a=m.get(k)||{k,score:0,ech:0}; a.score+=r.score; a.ech+=r.ech; m.set(k,a); }
-  for(const a of m.values()) a.rate=a.ech?Math.min(1,a.score/a.ech):0;
+  const tot=[...m.values()].reduce((s,a)=>s+a.score,0);
+  for(const a of m.values()){ a.tot=tot; a.rate=tot?a.score/tot:0; a.pres=a.ech?Math.min(1,a.score/a.ech):0; }
+  return [...m.values()];
+}
+/* Arrondi équilibré : des pourcentages entiers dont la somme fait exactement 100. */
+function round100(vals){
+  const tot=vals.reduce((a,v)=>a+(v||0),0); if(!tot) return vals.map(()=>null);
+  const raw=vals.map(v=>(v||0)/tot*100), fl=raw.map(Math.floor); let rest=100-fl.reduce((a,v)=>a+v,0);
+  raw.map((v,i)=>[v-fl[i],i]).sort((a,b)=>b[0]-a[0]).forEach(([,i])=>{ if(rest>0){ fl[i]++; rest--; } });
+  return fl;
+}
+/* Part d'une sélection (ex. une marque) dans le total de toutes les marques, par clé (mois, marché…). Total des parts = 100 %. */
+function shareBy(rows,filter,key){
+  const tot=new Map(), m=new Map();
+  for(const r of rows){ const k=key(r); tot.set(k,(tot.get(k)||0)+r.score); if(!filter(r)) continue; const a=m.get(k)||{k,score:0,ech:0}; a.score+=r.score; a.ech+=r.ech; m.set(k,a); }
+  for(const a of m.values()){ a.tot=tot.get(a.k)||0; a.rate=a.tot?a.score/a.tot:0; }
   return [...m.values()];
 }
 function uniq(arr){ return [...new Set(arr.filter(Boolean))].sort((a,b)=>a.localeCompare(b,"fr")); }
@@ -511,8 +526,8 @@ function baseOpts(){
 }
 function rankChart(id, rows, ourColor){
   const o=baseOpts(); o.indexAxis="y";
-  o.scales.x.min=0; o.scales.x.max=100; o.scales.x.ticks.callback=v=>v+" %"; o.scales.y.grid={display:false};
-  o.plugins.tooltip.callbacks.label=c=>` ${c.raw.toFixed(1).replace(".",",")} %  (${rows[c.dataIndex].score} / ${rows[c.dataIndex].ech})`;
+  o.scales.x.min=0; o.scales.x.suggestedMax=Math.min(100,Math.ceil(Math.max(5,...rows.map(r=>r.rate*100))/5)*5+5); o.scales.x.ticks.callback=v=>v+" %"; o.scales.y.grid={display:false};
+  o.plugins.tooltip.callbacks.label=c=>` Part : ${c.raw.toFixed(1).replace(".",",")} %  (${rows[c.dataIndex].score} citations sur ${rows[c.dataIndex].tot})`;
   chart(id,{type:"bar",data:{labels:rows.map(r=>r.k),datasets:[{data:rows.map(r=>r.rate*100),backgroundColor:rows.map(r=>isOurs(r.k)?ourColor:tok("--comp")),borderRadius:4,barPercentage:.8}]},options:o});
 }
 
@@ -522,17 +537,18 @@ function pie3d(canvas,items,legendEl,opts={}){
   if(!canvas) return;
   const W=canvas.width,H=canvas.height,ctx=canvas.getContext("2d"); ctx.clearRect(0,0,W,H);
   const data=items.filter(i=>i.value>0), tot=data.reduce((a,i)=>a+i.value,0);
-  if(legendEl) legendEl.innerHTML=data.map(i=>`<span><i style="background:${i.color}"></i>${esc(i.label)} · ${tot?Math.round(i.value/tot*100):0} %</span>`).join("");
+  const rp=round100(data.map(i=>i.value));
+  if(legendEl) legendEl.innerHTML=data.map((i,k)=>`<span><i style="background:${i.color}"></i>${esc(i.label)} · ${rp[k]??0} %</span>`).join("");
   if(!tot){ ctx.fillStyle=tok("--muted"); ctx.font="600 18px Figtree, system-ui, sans-serif"; ctx.textAlign="center"; ctx.fillText("Aucune donnée",W/2,H/2); return; }
   const rx=Math.min(W*0.46,H*0.82), ry=rx*0.5, depth=Math.max(10,rx*0.16), cx=W/2, cy=(H-depth)/2+2;
-  let a0=-Math.PI/2; const segs=data.map(i=>{ const a1=a0+i.value/tot*2*Math.PI; const sg={...i,a0,a1}; a0=a1; return sg; });
+  let a0=-Math.PI/2; const segs=data.map((i,k)=>{ const a1=a0+i.value/tot*2*Math.PI; const sg={...i,a0,a1,pr:rp[k]}; a0=a1; return sg; });
   const wedge=(y,sg)=>{ ctx.beginPath(); ctx.moveTo(cx,y); ctx.ellipse(cx,y,rx,ry,0,sg.a0,sg.a1); ctx.closePath(); };
   for(let d=depth; d>0; d--){ for(const sg of segs){ wedge(cy+d,sg); ctx.fillStyle=shade(sg.color,0.7); ctx.fill(); } }
   ctx.lineWidth=1.2; ctx.strokeStyle="rgba(255,255,255,.65)";
   for(const sg of segs){ wedge(cy,sg); ctx.fillStyle=sg.color; ctx.fill(); if(segs.length>1) ctx.stroke(); }
   ctx.textAlign="center"; ctx.textBaseline="middle";
   for(const sg of segs){ const p=(sg.a1-sg.a0)/(2*Math.PI); if(p<0.04) continue; const m=(sg.a0+sg.a1)/2;
-    const x=cx+Math.cos(m)*rx*0.64, y=cy+Math.sin(m)*ry*0.64; const txt=Math.round(p*100)+" %";
+    const x=cx+Math.cos(m)*rx*0.64, y=cy+Math.sin(m)*ry*0.64; const txt=sg.pr+" %";
     ctx.font=`700 ${opts.small?15:17}px Figtree, system-ui, sans-serif`; ctx.lineWidth=3; ctx.strokeStyle="rgba(0,0,0,.35)"; ctx.strokeText(txt,x,y); ctx.fillStyle="#fff"; ctx.fillText(txt,x,y); }
 }
 const OUR_COLS=()=>[tok("--purple"),tok("--leaf"),tok("--purple-2"),tok("--ring"),"#c07a12","#8fc062"], GREYS=["#c9c5d6","#b3aec2","#9e99b0","#8d879f","#7a748d","#dad7e3","#a49fb8","#bebac9","#d2cfdc","#948fa6"];
@@ -558,14 +574,13 @@ function renderDashboard(){
 
   // Cartes produits
   $("prodCards").innerHTML=OUR.map(p=>{
-    const all=lines({seg:p.seg,type:"PRESENCE",zone}).filter(r=>p.test(r.marque));
-    const byM=agg(all,r=>r.mois).sort((a,b)=>a.k.localeCompare(b.k));
+    const byM=shareBy(lines({seg:p.seg,type:"PRESENCE",zone}),r=>p.test(r.marque),r=>r.mois).sort((a,b)=>a.k.localeCompare(b.k));
     const months = mois==="TOUS" ? byM : byM.filter(x=>x.k<=mois);
     const cur=months[months.length-1], prev=months[months.length-2];
     let rank="–", nb=0;
     if(cur){ const r=agg(lines({seg:p.seg,type:"PRESENCE",zone,mois:cur.k}),x=>brandOf(x.marque)).sort((a,b)=>b.rate-a.rate); nb=r.length; const i=r.findIndex(x=>p.test(x.k)); rank=i>=0?(i+1)+"<sup>e</sup>/"+nb:"–"; }
     const sondT = p.seg==="BOUILLON"?"CALEBASSE":"SONDAGE";
-    const sond=agg(lines({seg:p.seg,type:sondT,zone,mois}).filter(r=>p.test(r.marque)),()=>1)[0];
+    const sond=shareBy(lines({seg:p.seg,type:sondT,zone,mois}),r=>p.test(r.marque),()=>1)[0];
     const prix=priceRows({seg:p.seg}).filter(r=>p.test(r.produit)&&r.prixConso);
     const pc=prix.length?prix.reduce((s,r)=>s+r.prixConso,0)/prix.length:null;
     let d="";
@@ -574,7 +589,7 @@ function renderDashboard(){
       <div class="seg">${p.seg==="BOUILLON"?"Arôme bouillon":"Mayonnaise"}</div>
       <div class="name">${p.nom}</div>
       <div class="big"><b class="num">${cur?pct(cur.rate):"–"}</b>${d}</div>
-      <div class="note">${cur?"présence · "+mLabel(cur.k):"pas encore d'étude de présence"}</div>
+      <div class="note">${cur?"part de présence · "+mLabel(cur.k):"pas encore d'étude de présence"}</div>
       ${spark(months.map(x=>x.rate), p.seg==="MAYONNAISE"?"--leaf":"--purple")}
       <dl><dt>Rang segment</dt><dd class="num">${rank}</dd>
       <dt>${p.seg==="BOUILLON"?"Sondage calebasse":"Sondage conso."}</dt><dd class="num">${sond?pct(sond.rate):"–"}</dd>
@@ -586,9 +601,9 @@ function renderDashboard(){
   pie3d($("p3B"),shareItems(lines({seg:"BOUILLON",type:"PRESENCE",zone,mois})),$("p3BL"));
   pie3d($("p3M"),shareItems(lines({seg:"MAYONNAISE",type:"PRESENCE",zone,mois})),$("p3ML"));
   $("ourPies").innerHTML=OUR.map(p=>`<div class="pie3d"><div class="pt">${p.nom}</div><canvas id="op_${p.id}" width="320" height="200"></canvas><div class="plegend" id="opl_${p.id}"></div></div>`).join("");
-  OUR.forEach(p=>{ const rws=lines({seg:p.seg,type:"PRESENCE",zone,mois}).filter(r=>p.test(r.marque)&&(p.seg==="BOUILLON"||/1L$/i.test(r.marque)));
-    const sc=rws.reduce((a,r)=>a+r.score,0), ec=rws.reduce((a,r)=>a+r.ech,0);
-    pie3d($("op_"+p.id),ec?[{label:"Présent",value:Math.min(sc,ec),color:p.seg==="MAYONNAISE"?tok("--leaf"):tok("--purple")},{label:"Absent",value:Math.max(0,ec-sc),color:"#d9d6e3"}]:[],$("opl_"+p.id),{small:true}); });
+  OUR.forEach(p=>{ const all=lines({seg:p.seg,type:"PRESENCE",zone,mois});
+    const sc=all.filter(r=>p.test(r.marque)).reduce((a,r)=>a+r.score,0), tt=all.reduce((a,r)=>a+r.score,0);
+    pie3d($("op_"+p.id),tt?[{label:p.nom.replace(/^(Arôme|Mayonnaise) /,""),value:sc,color:p.seg==="MAYONNAISE"?tok("--leaf"):tok("--purple")},{label:"Autres marques",value:Math.max(0,tt-sc),color:"#d9d6e3"}]:[],$("opl_"+p.id),{small:true}); });
 
   // Alertes
   const al=computeAlerts(zone);
@@ -617,12 +632,13 @@ function computeAlerts(zone){
   const items=[];
   for(const f of latest.values()){
     const ech=+f.echantillon||0; if(!ech) continue;
-    const L=(f.lignes||[]).map(l=>({m:l.marque,r:Math.min(1,(+l.score||0)/ech)}));
+    const totS=(f.lignes||[]).reduce((a,l)=>a+(+l.score||0),0); if(!totS) continue;
+    const L=(f.lignes||[]).map(l=>({m:l.marque,r:(+l.score||0)/totS}));
     const comp=L.filter(x=>!isOurs(x.m)).sort((a,b)=>b.r-a.r)[0]; if(!comp) continue;
     const ours=L.filter(x=>isOurs(x.m)&&(f.segment==="BOUILLON"||/1L$/i.test(x.m)));
     for(const o of ours){
       const gap=comp.r-o.r;
-      if(gap>=.3) items.push({gap,sev:o.r<.1?"crit":"warn",title:`${ourOf(o.m)?.nom||o.m} à ${pct(o.r)} face à ${comp.m} (${pct(comp.r)})`,meta:`${esc(f.marche)} · ${esc(f.zone)} · visite du ${fmtDate(f.date)} · écart ${Math.round(gap*100)} pts`});
+      if(gap>=.1) items.push({gap,sev:o.r<.03?"crit":"warn",title:`${ourOf(o.m)?.nom||o.m} à ${pct(o.r)} face à ${comp.m} (${pct(comp.r)})`,meta:`${esc(f.marche)} · ${esc(f.zone)} · visite du ${fmtDate(f.date)} · écart ${Math.round(gap*100)} pts`});
     }
   }
   items.sort((a,b)=>b.gap-a.gap);
@@ -647,7 +663,7 @@ function renderPresence(){
     ["Fiches analysées",fiches.size,`${[...fiches].reduce((s,x)=>s+(+x.echantillon||0),0).toLocaleString("fr-FR")} points interrogés`],
     ["Leader du segment",leader?esc(leader.k):"–",leader?pct(leader.rate):""],
     ["Notre meilleur produit",best?esc(best.k):"–",best?`${pct(best.rate)} · ${rank.indexOf(best)+1}e rang`:""],
-    ["Part de visibilité",sAll?pct(sOurs/sAll):"–","nos citations ÷ toutes les citations"],
+    ["Part totale de nos produits",sAll?pct(sOurs/sAll):"–","nos citations ÷ toutes les citations"],
     ["Marchés",new Set([...fiches].map(x=>x.marche)).size,`${new Set([...fiches].map(x=>x.agent)).size} agents`],
   ];
   $("pKpis").innerHTML=k.map(x=>`<div class="card kpi"><div class="lbl">${x[0]}</div><div class="val num" style="font-size:${String(x[1]).length>9?"1.25rem":"2rem"}">${x[1]}</div><div class="hint">${x[2]}</div></div>`).join("");
@@ -663,10 +679,10 @@ function renderPresence(){
   const ourPal=[tok("--purple"),tok("--leaf"),tok("--purple-2"),tok("--ring"),tok("--ink")];
   let oi=0;
   const ds=series.map(s=>{ const ours=isOurs(s); const col=ours?ourPal[oi++%5]:tok("--comp-2");
-    const by=new Map(agg(rows2.filter(r=>r.marque===s),r=>r.mois).map(a=>[a.k,a.rate*100]));
+    const by=new Map(shareBy(rows2,r=>r.marque===s,r=>r.mois).map(a=>[a.k,a.rate*100]));
     return {label:s,data:months.map(m=>by.has(m)?by.get(m):null),borderColor:col,backgroundColor:col,borderWidth:ours?3:1.5,borderDash:ours?[]:[5,4],pointRadius:3,spanGaps:true,tension:.25}; });
   const o=baseOpts(); o.plugins.legend.display=true; o.plugins.legend.position="bottom"; o.plugins.legend.labels.boxWidth=12;
-  o.scales.y.min=0; o.scales.y.max=100; o.scales.y.ticks.callback=v=>v+" %";
+  o.scales.y.min=0; o.scales.y.ticks.callback=v=>v+" %";
   o.plugins.tooltip.callbacks.label=c=>` ${c.dataset.label} : ${c.raw==null?"–":c.raw.toFixed(1).replace(".",",")+" %"}`;
   chart("cEvo",{type:"line",data:{labels:months.map(mLabel),datasets:ds},options:o});
 
@@ -683,9 +699,9 @@ function renderPresence(){
   const ourBrands=[...new Set(rows.filter(r=>isOurs(r.marque)&&(seg==="BOUILLON"||f.fmt!=="TOUS"||/1L$/i.test(r.marque))).map(r=>r.marque))].slice(0,5);
   const mks=[...new Set(rows.map(r=>r.fi.marche))].sort();
   const pal=[tok("--purple"),tok("--leaf"),tok("--purple-2"),tok("--ring"),"#c07a12"];
-  const om=baseOpts(); om.indexAxis="y"; om.plugins.legend.display=true; om.plugins.legend.position="bottom"; om.scales.x.min=0; om.scales.x.max=100; om.scales.x.ticks.callback=v=>v+" %"; om.scales.y.grid={display:false};
+  const om=baseOpts(); om.indexAxis="y"; om.plugins.legend.display=true; om.plugins.legend.position="bottom"; om.scales.x.min=0; om.scales.x.ticks.callback=v=>v+" %"; om.scales.y.grid={display:false};
   om.plugins.tooltip.callbacks.label=c=>` ${c.dataset.label} : ${c.raw==null?"–":c.raw.toFixed(0)+" %"}`;
-  chart("cMk",{type:"bar",data:{labels:mks,datasets:ourBrands.map((b,i)=>{ const by=new Map(agg(rows.filter(r=>r.marque===b),r=>r.fi.marche).map(a=>[a.k,a.rate*100])); return {label:b,data:mks.map(m=>by.has(m)?by.get(m):null),backgroundColor:pal[i],borderRadius:3}; })},options:om});
+  chart("cMk",{type:"bar",data:{labels:mks,datasets:ourBrands.map((b,i)=>{ const by=new Map(shareBy(rows,r=>r.marque===b,r=>r.fi.marche).map(a=>[a.k,a.rate*100])); return {label:b,data:mks.map(m=>by.has(m)?by.get(m):null),backgroundColor:pal[i],borderRadius:3}; })},options:om});
   $("cMk").parentElement.style.height=Math.max(320,mks.length*(ourBrands.length*9+10)+80)+"px";
 
   // Heatmap
@@ -696,8 +712,8 @@ function renderPresence(){
   const pr=tok("--purple"), lf=tok("--comp-2");
   $("heat").innerHTML=`<thead><tr><th>Marché</th><th class="r">Échant.</th>${cols.map(c=>`<th class="rot" style="${isOurs(c)?"color:var(--purple)":""}">${esc(c)}</th>`).join("")}</tr></thead><tbody>`+
     mk.map(m=>{ const a=new Map(agg(byMk.get(m),r=>r.marque).map(x=>[x.k,x])); const e=new Set(byMk.get(m).map(r=>r.fi)); const n=[...e].reduce((s,x)=>s+(+x.echantillon||0),0);
-      return `<tr><td><b>${esc(m)}</b></td><td class="r num">${n}</td>${cols.map(c=>{const v=a.get(c); if(!v) return `<td class="c" style="color:var(--muted)">·</td>`; const al=Math.min(1,v.rate*1.1);
-        return `<td class="c num" style="background:color-mix(in srgb, ${isOurs(c)?pr:lf} ${Math.round(al*85)}%, transparent);color:${v.rate>.5?"#fff":"var(--ink)"}">${Math.round(v.rate*100)}</td>`;}).join("")}</tr>`; }).join("")+"</tbody>";
+      return `<tr><td><b>${esc(m)}</b></td><td class="r num">${n}</td>${cols.map(c=>{const v=a.get(c); if(!v) return `<td class="c" style="color:var(--muted)">·</td>`; const al=Math.min(1,v.rate*2.5);
+        return `<td class="c num" style="background:color-mix(in srgb, ${isOurs(c)?pr:lf} ${Math.round(al*85)}%, transparent);color:${v.rate>.22?"#fff":"var(--ink)"}">${Math.round(v.rate*100)}</td>`;}).join("")}</tr>`; }).join("")+"</tbody>";
 }
 
 /* ---------- Vue : Prix ---------- */
@@ -761,12 +777,12 @@ function renderConcurrence(){
   // marchés où le concurrent devance notre meilleur produit (dernière visite)
   const latest=new Map(); for(const f of S.fiches){ if(f.type!=="PRESENCE"||f.segment!==seg) continue; const o=latest.get(f.marche); if(!o||f.date>o.date) latest.set(f.marche,f); }
   $("compCards").innerHTML=brands.map(b=>{
-    const c=agg(rows.filter(r=>brandOf(r.marque)===b.k&&r.mois===cur),()=>1)[0], p=agg(rows.filter(r=>brandOf(r.marque)===b.k&&r.mois===prev),()=>1)[0];
+    const c=shareBy(rows.filter(r=>r.mois===cur),r=>brandOf(r.marque)===b.k,()=>1)[0], p=shareBy(rows.filter(r=>r.mois===prev),r=>brandOf(r.marque)===b.k,()=>1)[0];
     let lead=0; for(const f of latest.values()){ const e=+f.echantillon||0; if(!e) continue; const L=f.lignes||[]; const bm=Math.max(0,...L.filter(l=>brandOf(l.marque)===b.k).map(l=>+l.score||0)); const om=Math.max(0,...L.filter(l=>isOurs(l.marque)).map(l=>+l.score||0)); if(bm>om) lead++; }
     const pp=priceRows({seg}).filter(r=>r.produit.includes(b.k)&&r.prixConso);
     const dv=c&&p?(c.rate-p.rate)*100:null;
     return `<div class="card kpi"><div class="lbl">${esc(b.k)}</div><div class="val num" style="color:var(--ink)">${pct(b.rate)}</div>
-      <div class="hint">présence moyenne ${dv!=null?`· <span class="delta ${dv>1?"down":dv<-1?"up":"flat"}">${dv>0?"+":""}${dv.toFixed(0)} pts</span>`:""}</div>
+      <div class="hint">part moyenne ${dv!=null?`· <span class="delta ${dv>1?"down":dv<-1?"up":"flat"}">${dv>0?"+":""}${dv.toFixed(0)} pts</span>`:""}</div>
       <div class="hint" style="margin-top:6px">Nous devance sur <b>${lead}</b> / ${latest.size} marchés</div>
       <div class="hint">Prix conso. : <b>${fcfa(avg(pp.map(r=>r.prixConso)))}</b></div></div>`;
   }).join("") || `<div class="empty" style="grid-column:1/-1"><b>Pas encore d'étude de présence</b>Les fiches concurrents se construisent à partir des études de présence.</div>`;
@@ -792,8 +808,8 @@ function renderBase(){
 }
 function detail(f){
   if(f.type==="PRIX") return `<div class="tablewrap"><table><thead><tr><th>Produit</th><th class="r">Grossiste</th><th class="r">½ gros</th><th class="r">Détaillant</th><th class="r">Conso.</th></tr></thead><tbody>${(f.lignes||[]).map(l=>`<tr class="${isOurs(l.produit)?"ours":""}"><td>${esc(l.produit)}</td><td class="r num">${fcfa(l.prixGros)}</td><td class="r num">${fcfa(l.prixDemiGros)}</td><td class="r num">${fcfa(l.prixDetail)}</td><td class="r num">${fcfa(l.prixConso)}</td></tr>`).join("")}</tbody></table></div>${f.observations?`<p>${esc(f.observations)}</p>`:""}`;
-  const e=+f.echantillon||1;
-  return `<div style="display:flex;flex-wrap:wrap;gap:6px 18px">${(f.lignes||[]).slice().sort((a,b)=>b.score-a.score).map(l=>`<span style="min-width:180px"><b style="${isOurs(l.marque)?"color:var(--purple)":""}">${esc(l.marque)}</b> ${l.score}/${e} · ${pct(l.score/e)}</span>`).join("")}</div>${f.observations?`<p>${esc(f.observations)}</p>`:""}`;
+  let rpD=[]; const e=+f.echantillon||1, tS=(f.lignes||[]).reduce((a,l)=>a+(+l.score||0),0);
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px 18px">${(()=>{ const Ls=(f.lignes||[]).slice().sort((a,b)=>b.score-a.score); rpD=round100(Ls.map(l=>+l.score||0)); return Ls; })().map((l,k)=>`<span style="min-width:180px"><b style="${isOurs(l.marque)?"color:var(--purple)":""}">${esc(l.marque)}</b> ${l.score} · ${rpD[k]??0} %</span>`).join("")}</div>${f.observations?`<p>${esc(f.observations)}</p>`:""}`;
 }
 
 /* ---------- Saisie ---------- */
@@ -827,8 +843,8 @@ function drawEntry(){
     t.innerHTML=`<thead><tr><th>Produit</th><th class="r">Qté/ctn</th><th class="r">Prix grossiste</th><th class="r">Prix ½ gros</th><th class="r">Vente détaillant</th><th class="r">Prix conso.</th><th class="r">Marge gros.</th><th class="r">Marge bout.</th></tr></thead><tbody>`+
       entryBrands.map((b,i)=>`<tr class="${isOurs(b.m)?"ours":""}"><td>${esc(b.m)}</td>${["qty","gros","demi","det","conso"].map(k=>`<td class="r"><input id="e_${k}_${i}" type="number" min="0" inputmode="numeric" value="${k==="qty"?esc(b.qty||""):""}" aria-label="${esc(b.m)} ${k}"></td>`).join("")}<td class="r num" id="mg_${i}">–</td><td class="r num" id="mb_${i}">–</td></tr>`).join("")+"</tbody>";
   } else {
-    t.innerHTML=`<thead><tr><th>Marque</th><th class="r">Trouvée / citée (nb)</th><th class="r">Taux</th><th></th></tr></thead><tbody>`+
-      entryBrands.map((b,i)=>`<tr class="${isOurs(b.m)?"ours":""}"><td>${esc(b.m)}</td><td class="r"><input id="e_s_${i}" type="number" min="0" inputmode="numeric" aria-label="Score ${esc(b.m)}"></td><td class="r rate num" id="rt_${i}">–</td><td><div class="bar ${isOurs(b.m)?"":"comp"}"><i id="br_${i}" style="width:0"></i></div></td></tr>`).join("")+"</tbody>";
+    t.innerHTML=`<thead><tr><th>Marque</th><th class="r">Trouvée / citée (nb)</th><th class="r">Part</th><th></th></tr></thead><tbody>`+
+      entryBrands.map((b,i)=>`<tr class="${isOurs(b.m)?"ours":""}"><td>${esc(b.m)}</td><td class="r"><input id="e_s_${i}" type="number" min="0" inputmode="numeric" aria-label="Score ${esc(b.m)}"></td><td class="r rate num" id="rt_${i}">–</td><td><div class="bar ${isOurs(b.m)?"":"comp"}"><i id="br_${i}" style="width:0"></i></div></td></tr>`).join("")+`</tbody><tfoot><tr><th>Total</th><th class="r num" id="e_tot">0</th><th class="r num" id="rt_tot">–</th><th></th></tr></tfoot>`;
   }
   recalc();
 }
@@ -839,9 +855,12 @@ function recalc(){
     return;
   }
   const e=+$("sEch").value||0; let bad=false;
-  entryBrands.forEach((b,i)=>{ const el=$("e_s_"+i); const v=el.value===""?null:+el.value; const r=v!=null&&e?v/e:null;
+  const tot=entryBrands.reduce((a,b,i)=>a+(+$("e_s_"+i).value||0),0);
+  $("e_tot").textContent=tot; $("rt_tot").textContent=tot?"100 %":"–";
+  const rp=round100(entryBrands.map((b,i)=>+$("e_s_"+i).value||0));
+  entryBrands.forEach((b,i)=>{ const el=$("e_s_"+i); const v=el.value===""?null:+el.value; const r=v!=null&&tot?v/tot:null;
     if(v!=null&&e&&v>e){ bad=true; el.style.borderColor="var(--crit)"; } else el.style.borderColor="";
-    $("rt_"+i).textContent=r==null?"–":pct(r); $("br_"+i).style.width=r==null?"0":Math.min(100,r*100)+"%"; });
+    $("rt_"+i).textContent=r==null?"–":rp[i]+" %"; $("br_"+i).style.width=r==null?"0":Math.min(100,r*100)+"%"; });
   $("formMsg").textContent = bad?"Un score dépasse l'échantillon : vérifiez la saisie.":"";
 }
 async function saveFiche(ev){
@@ -885,14 +904,14 @@ const xDate=d=>{ if(!d) return null; const [y,m,j]=d.split("-").map(Number); ret
 function sheetOf(rows,widths){ const ws=XLSX.utils.aoa_to_sheet(rows,{cellDates:true,dateNF:"dd/mm/yyyy"}); ws["!cols"]=widths.map(w=>({wch:w})); ws["!autofilter"]={ref:ws["!ref"]}; return ws; }
 function exportCsv(){
   if(!window.XLSX){ toast("Le module Excel n'a pas pu se charger. Vérifiez votre connexion."); return; }
-  const E=[["DATE","TYPE D'ÉTUDE","SEGMENT","ZONE","MARCHÉ","AGENT","ÉCHANTILLON","MARQUE","FORMAT","SCORE","TAUX","NOTRE PRODUIT","OBSERVATIONS"]];
+  const E=[["DATE","TYPE D'ÉTUDE","SEGMENT","ZONE","MARCHÉ","AGENT","ÉCHANTILLON","MARQUE","FORMAT","SCORE","PART","NOTRE PRODUIT","OBSERVATIONS"]];
   const P=[["DATE","SEGMENT","ZONE","MARCHÉ","AGENT","PRODUIT","POIDS (g)","QTÉ / CARTON","PRIX GROSSISTE","PRIX ½ GROS","VENTE DÉTAILLANT","PRIX CONSOMMATEUR","MARGE GROSSISTE","MARGE BOUTIQUE","NOTRE PRODUIT"]];
   const A=[["DATE","MARCHÉ","MARQUE CONCURRENTE","CATÉGORIE","IMPACT","SIGNALÉ PAR","DESCRIPTION"]];
   const F=[...S.fiches].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.marche).localeCompare(String(b.marche)));
   for(const f of F){
     if(f.type==="PRIX"){ for(const l of f.lignes||[]){ const g=+l.prixGros||null,d=+l.prixDemiGros||null,r=+l.prixDetail||null;
       P.push([xDate(f.date),f.segment,f.zone,f.marche,f.agent,l.produit,l.poids??null,l.qtyCtn??null,g,d,r,l.prixConso??null,g&&d?Math.round((d-g)/g*1000)/1000:null,d&&r?Math.round((r-d)/d*1000)/1000:null,isOurs(l.produit)?"OUI":"NON"]); } }
-    else for(const l of f.lignes||[]) E.push([xDate(f.date),f.type,f.segment,f.zone,f.marche,f.agent,f.echantillon,l.marque,l.format||"",l.score,f.echantillon?Math.round(Math.min(1,l.score/f.echantillon)*1000)/1000:null,isOurs(l.marque)?"OUI":"NON",f.observations||""]);
+    else { const tS=(f.lignes||[]).reduce((a,l)=>a+(+l.score||0),0); for(const l of f.lignes||[]) E.push([xDate(f.date),f.type,f.segment,f.zone,f.marche,f.agent,f.echantillon,l.marque,l.format||"",l.score,tS?Math.round(l.score/tS*1000)/1000:null,isOurs(l.marque)?"OUI":"NON",f.observations||""]); }
   }
   for(const v of [...S.veille].sort((a,b)=>String(a.date).localeCompare(String(b.date)))) A.push([xDate(v.date),v.marche||"",v.marque,v.categorie,v.impact,v.agent||"",v.description]);
   const wb=XLSX.utils.book_new();
