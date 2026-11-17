@@ -287,8 +287,8 @@ details.fiche > summary{cursor:pointer}
   <div id="writeNotice"></div>
   <div class="typepick" id="typePick">
     <button type="button" data-t="PRESENCE" aria-pressed="true"><b>Étude de présence</b><span>Marques trouvées en boutique</span></button>
-    <button type="button" data-t="CALEBASSE" aria-pressed="false"><b>Sondage calebasse</b><span>Bouillon utilisé par les ménagères</span></button>
-    <button type="button" data-t="SONDAGE" aria-pressed="false"><b>Sondage consommateurs</b><span>Marque de mayonnaise préférée</span></button>
+    <button type="button" data-t="CALEBASSE" aria-pressed="false"><b>Sondage calebasse</b><span>Produit utilisé par les ménagères</span></button>
+    <button type="button" data-t="SONDAGE" aria-pressed="false"><b>Sondage consommateurs</b><span>Marque préférée des consommateurs</span></button>
     <button type="button" data-t="PRIX" aria-pressed="false"><b>Relevé de prix</b><span>Grossiste → consommateur</span></button>
   </div>
   <form id="ficheForm" class="card" novalidate>
@@ -584,8 +584,8 @@ function renderDashboard(){
     const cur=months[months.length-1], prev=months[months.length-2];
     let rank="–", nb=0;
     if(cur){ const r=agg(lines({seg:p.seg,type:"PRESENCE",zone,mois:cur.k}),x=>brandOf(x.marque)).sort((a,b)=>b.rate-a.rate); nb=r.length; const i=r.findIndex(x=>p.test(x.k)); rank=i>=0?(i+1)+"<sup>e</sup>/"+nb:"–"; }
-    const sondT = p.seg==="BOUILLON"?"CALEBASSE":"SONDAGE";
-    const sond=shareBy(lines({seg:p.seg,type:sondT,zone,mois}),r=>p.test(r.marque),()=>1)[0];
+    const cal=shareBy(lines({seg:p.seg,type:"CALEBASSE",zone,mois}),r=>p.test(r.marque),()=>1)[0];
+    const sond=shareBy(lines({seg:p.seg,type:"SONDAGE",zone,mois}),r=>p.test(r.marque),()=>1)[0];
     const prix=priceRows({seg:p.seg}).filter(r=>p.test(r.produit)&&r.prixConso);
     const pc=prix.length?prix.reduce((s,r)=>s+r.prixConso,0)/prix.length:null;
     let d="";
@@ -597,7 +597,8 @@ function renderDashboard(){
       <div class="note">${cur?"part de présence · "+mLabel(cur.k):"pas encore d'étude de présence"}</div>
       ${spark(months.map(x=>x.rate), p.seg==="MAYONNAISE"?"--leaf":"--purple")}
       <dl><dt>Rang segment</dt><dd class="num">${rank}</dd>
-      <dt>${p.seg==="BOUILLON"?"Sondage calebasse":"Sondage conso."}</dt><dd class="num">${sond?pct(sond.rate):"–"}</dd>
+      <dt>Sondage calebasse</dt><dd class="num">${cal?pct(cal.rate):"–"}</dd>
+      <dt>Sondage conso.</dt><dd class="num">${sond?pct(sond.rate):"–"}</dd>
       <dt>Prix conso. moyen</dt><dd class="num">${fcfa(pc)}</dd></dl></div>`;
   }).join("");
 
@@ -656,7 +657,7 @@ function computeAlerts(zone){
 /* ---------- Vue : Présence ---------- */
 function renderPresence(){
   const seg=$("pSeg").value;
-  fillSelect($("pType"), seg==="BOUILLON"?[["PRESENCE","Étude de présence"],["CALEBASSE","Sondage calebasse"]]:[["PRESENCE","Étude de présence"],["SONDAGE","Sondage consommateurs"]]);
+  fillSelect($("pType"), [["PRESENCE","Étude de présence"],["CALEBASSE","Sondage calebasse"],["SONDAGE","Sondage consommateurs"]]);
   fillSelect($("pFmt"), [["TOUS","Tous formats"]].concat(uniq(S.fiches.filter(f=>f.segment===seg).flatMap(f=>(f.lignes||[]).map(l=>l.format))).map(x=>[x,x])));
   const f={seg,type:$("pType").value,zone:$("pZone").value,mois:$("pMois").value,fmt:$("pFmt").value};
   const rows=lines(f);
@@ -822,8 +823,6 @@ let curType="PRESENCE", entryBrands=[];
 function setType(t){
   curType=t;
   document.querySelectorAll("#typePick button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.t===t));
-  if(t==="CALEBASSE") $("sSeg").value="BOUILLON";
-  if(t==="SONDAGE") $("sSeg").value="MAYONNAISE";
   $("sSeg").disabled = false;
   $("echField").hidden = t==="PRIX";
   $("echField").querySelector("label").textContent = t==="PRESENCE"?"Échantillon (boutiques visitées)":"Échantillon (personnes interrogées)";
@@ -1180,10 +1179,6 @@ $("bType").addEventListener("change",renderBase); $("bSearch").addEventListener(
 $("typePick").addEventListener("click",e=>{ const b=e.target.closest("button[data-t]"); if(b) setType(b.dataset.t); });
 document.querySelectorAll(".segpick button").forEach(b=>b.addEventListener("click",()=>{ const e=$("sSeg"); if(e.value===b.dataset.seg) return; e.value=b.dataset.seg; e.dispatchEvent(new Event("change")); }));
 $("sSeg").addEventListener("change",()=>{
-  /* Sondage : le bouillon se fait en « calebasse », la mayonnaise en « sondage consommateurs » */
-  const v=$("sSeg").value;
-  if(curType==="CALEBASSE"&&v==="MAYONNAISE") return setType("SONDAGE");
-  if(curType==="SONDAGE"&&v==="BOUILLON") return setType("CALEBASSE");
   buildEntry();
 }); $("sFmt").addEventListener("change",buildEntry);
 $("entryTable").addEventListener("input",recalc); $("sEch").addEventListener("input",recalc);
