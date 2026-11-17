@@ -87,6 +87,9 @@ textarea{resize:vertical;min-height:70px;width:100%}
 .btn.green{background:var(--leaf);color:#fff}
 .btn.sm{padding:6px 10px;font-size:.82rem}
 .btn.danger{background:var(--crit);color:#fff}
+.segpick{display:flex;gap:6px}
+.segpick button{flex:1;min-height:44px;font:inherit;font-weight:600;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:9px;cursor:pointer;touch-action:manipulation}
+.segpick button[aria-pressed="true"]{background:var(--purple);border-color:var(--purple);color:var(--surface)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 
 /* Grids & cards */
@@ -290,7 +293,8 @@ details.fiche > summary{cursor:pointer}
   </div>
   <form id="ficheForm" class="card" novalidate>
     <div class="formgrid">
-      <div class="field"><label for="sSeg">Segment</label><select id="sSeg"><option value="BOUILLON">Bouillon</option><option value="MAYONNAISE">Mayonnaise</option></select></div>
+      <div class="field"><label id="sSegLbl">Segment</label><select id="sSeg" hidden aria-hidden="true" tabindex="-1"><option value="BOUILLON">Bouillon</option><option value="MAYONNAISE">Mayonnaise</option></select>
+        <div class="segpick" role="group" aria-labelledby="sSegLbl"><button type="button" data-seg="BOUILLON" aria-pressed="true">Bouillon</button><button type="button" data-seg="MAYONNAISE" aria-pressed="false">Mayonnaise</button></div></div>
       <div class="field"><label for="sZone">Zone / ville</label><input id="sZone" list="dlZones" required placeholder="NIAMEY"></div>
       <div class="field"><label for="sMarche">Marché</label><input id="sMarche" list="dlMarches" required placeholder="WADATA"></div>
       <div class="field"><label for="sDate">Date</label><input id="sDate" type="date" required></div>
@@ -827,6 +831,7 @@ function setType(t){
 }
 function buildEntry(){
   const seg=$("sSeg").value;
+  document.querySelectorAll(".segpick button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.seg===seg));
   $("fmtField").hidden = !(curType!=="PRIX" && seg==="MAYONNAISE");
   fillSelect($("sFmt"),[["TOUS","Tous formats"],["1L","1L"],["500ml","500 ml"],["250ml","250 ml"]]);
   if(curType==="PRIX"){
@@ -1173,6 +1178,7 @@ window.addEventListener("hashchange",show);
 $("cSeg").addEventListener("change",renderConcurrence); $("vFilter").addEventListener("change",renderConcurrence);
 $("bType").addEventListener("change",renderBase); $("bSearch").addEventListener("input",renderBase);
 $("typePick").addEventListener("click",e=>{ const b=e.target.closest("button[data-t]"); if(b) setType(b.dataset.t); });
+document.querySelectorAll(".segpick button").forEach(b=>b.addEventListener("click",()=>{ const e=$("sSeg"); if(e.value===b.dataset.seg) return; e.value=b.dataset.seg; e.dispatchEvent(new Event("change")); }));
 $("sSeg").addEventListener("change",()=>{
   /* Sondage : le bouillon se fait en « calebasse », la mayonnaise en « sondage consommateurs » */
   const v=$("sSeg").value;
