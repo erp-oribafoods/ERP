@@ -820,7 +820,7 @@ function setType(t){
   document.querySelectorAll("#typePick button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.t===t));
   if(t==="CALEBASSE") $("sSeg").value="BOUILLON";
   if(t==="SONDAGE") $("sSeg").value="MAYONNAISE";
-  $("sSeg").disabled = t==="CALEBASSE"||t==="SONDAGE";
+  $("sSeg").disabled = false;
   $("echField").hidden = t==="PRIX";
   $("echField").querySelector("label").textContent = t==="PRESENCE"?"Échantillon (boutiques visitées)":"Échantillon (personnes interrogées)";
   buildEntry();
@@ -1173,7 +1173,13 @@ window.addEventListener("hashchange",show);
 $("cSeg").addEventListener("change",renderConcurrence); $("vFilter").addEventListener("change",renderConcurrence);
 $("bType").addEventListener("change",renderBase); $("bSearch").addEventListener("input",renderBase);
 $("typePick").addEventListener("click",e=>{ const b=e.target.closest("button[data-t]"); if(b) setType(b.dataset.t); });
-$("sSeg").addEventListener("change",buildEntry); $("sFmt").addEventListener("change",buildEntry);
+$("sSeg").addEventListener("change",()=>{
+  /* Sondage : le bouillon se fait en « calebasse », la mayonnaise en « sondage consommateurs » */
+  const v=$("sSeg").value;
+  if(curType==="CALEBASSE"&&v==="MAYONNAISE") return setType("SONDAGE");
+  if(curType==="SONDAGE"&&v==="BOUILLON") return setType("CALEBASSE");
+  buildEntry();
+}); $("sFmt").addEventListener("change",buildEntry);
 $("entryTable").addEventListener("input",recalc); $("sEch").addEventListener("input",recalc);
 $("addBrand").addEventListener("click",()=>{ const v=norm($("newBrand").value); if(!v||entryBrands.some(b=>b.m===v)) return; entryBrands.push({m:v}); $("newBrand").value=""; drawEntry(); });
 $("resetForm").addEventListener("click",()=>{ drawEntry(); $("sObs").value=""; $("formMsg").textContent=""; });
