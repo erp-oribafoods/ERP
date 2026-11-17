@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ERP RH SECOP &amp; FOOD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* Layout: sidebar navigation + working area; brand purple/green from the SECOP PVC / Oriba Food letterhead */
+:root{
+  --bg:#f5f4f8; --surface:#ffffff; --surface2:#f0eef6; --ink:#1f1b2b; --muted:#6a6578; --line:#e2dfeb;
+  --brand:#3b1f7a; --brand-ink:#ffffff; --accent:#2e8b3d; --accent-soft:#e6f3e8; --brand-soft:#ece8f6;
+  --ok:#2e8b3d; --warn:#b26a00; --warn-soft:#fff3df; --bad:#c0352b; --bad-soft:#fde8e6;
+  --display:"Barlow Semi Condensed","Arial Narrow",Arial,sans-serif; --body:"Source Sans 3","Segoe UI",Arial,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#15121d; --surface:#1d1928; --surface2:#262135; --ink:#ece9f4; --muted:#a29cb3; --line:#332d45;
+  --brand:#8f74d6; --brand-ink:#120d1e; --accent:#5cc070; --accent-soft:#1d3323; --brand-soft:#2a2342;
+  --ok:#5cc070; --warn:#f0a43a; --warn-soft:#3a2b12; --bad:#f07067; --bad-soft:#3d1e1c; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#15121d; --surface:#1d1928; --surface2:#262135; --ink:#ece9f4; --muted:#a29cb3; --line:#332d45;
+  --brand:#8f74d6; --brand-ink:#120d1e; --accent:#5cc070; --accent-soft:#1d3323; --brand-soft:#2a2342;
+  --ok:#5cc070; --warn:#f0a43a; --warn-soft:#3a2b12; --bad:#f07067; --bad-soft:#3d1e1c; color-scheme:dark;}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:232px 1fr;min-height:100%}
+aside{background:var(--brand);color:#fff;padding:18px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;overflow:auto}
+:root[data-theme="dark"] aside{background:#241a45}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) aside{background:#241a45}}
+.logo{font-family:var(--display);font-weight:700;font-size:22px;letter-spacing:.5px;padding:4px 10px 2px}
+.logo small{display:block;font-family:var(--body);font-weight:500;font-size:12px;opacity:.75;letter-spacing:0}
+.logo-bar{height:3px;background:#5cc070;margin:10px 10px 14px;border-radius:2px}
+nav a{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#fff;text-decoration:none;padding:9px 10px;border-radius:8px;opacity:.86;font-weight:500}
+nav a:hover{background:rgba(255,255,255,.08);opacity:1}
+nav a.on{background:rgba(255,255,255,.16);opacity:1;box-shadow:inset 3px 0 0 #5cc070}
+nav a .cnt{background:#c0352b;color:#fff;border-radius:10px;font-size:12px;padding:0 7px;font-weight:700}
+.side-foot{margin-top:auto;font-size:12px;opacity:.7;padding:10px}
+main{padding:22px 26px 60px;min-width:0}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+h1{font-family:var(--display);font-weight:700;font-size:30px;margin:0;color:var(--brand);text-wrap:balance}
+:root[data-theme="dark"] h1{color:#cbbcf5}
+h2{font-family:var(--display);font-weight:600;font-size:20px;margin:0 0 10px}
+.sub{color:var(--muted);font-size:14px;margin-top:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+.kpi .v{font-family:var(--display);font-size:34px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.kpi .l{color:var(--muted);font-size:13px;margin-top:6px}
+.kpi.stripe-ok{border-top:4px solid var(--ok)} .kpi.stripe-warn{border-top:4px solid var(--warn)} .kpi.stripe-bad{border-top:4px solid var(--bad)} .kpi.stripe-brand{border-top:4px solid var(--brand)}
+.bar{height:8px;background:var(--surface2);border-radius:5px;overflow:hidden;margin-top:10px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.btn{border:1px solid var(--line);background:var(--surface);padding:7px 13px;border-radius:8px;cursor:pointer;font-weight:600;white-space:nowrap}
+.btn:hover{border-color:var(--brand)}
+.btn.pri{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.btn.acc{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.dan{color:var(--bad);border-color:var(--bad)}
+.btn.sm{padding:4px 9px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:7px 9px;min-width:0}
+textarea{min-height:70px;resize:vertical}
+.search{min-width:220px}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;background:var(--surface2);color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.3px;padding:9px 10px;white-space:nowrap;position:sticky;top:0}
+td{padding:8px 10px;border-top:1px solid var(--line);vertical-align:middle}
+tr.click{cursor:pointer} tr.click:hover td{background:var(--brand-soft)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td input{width:100%;min-width:80px;padding:5px 7px}
+.pill{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.p-ok{background:var(--accent-soft);color:var(--ok)} .p-warn{background:var(--warn-soft);color:var(--warn)} .p-bad{background:var(--bad-soft);color:var(--bad)} .p-n{background:var(--surface2);color:var(--muted)} .p-b{background:var(--brand-soft);color:var(--brand)}
+:root[data-theme="dark"] .p-b{color:#cbbcf5}
+.alert{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line)}
+.alert:first-child{border-top:0}
+.dot{width:9px;height:9px;border-radius:50%;margin-top:6px;flex:none}
+.d-bad{background:var(--bad)} .d-warn{background:var(--warn)} .d-ok{background:var(--ok)} .d-b{background:var(--brand)}
+.muted{color:var(--muted)} .small{font-size:13px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:14px;flex-wrap:wrap}
+.tabs button{border:0;background:none;padding:8px 12px;cursor:pointer;color:var(--muted);font-weight:600;border-bottom:3px solid transparent}
+.tabs button.on{color:var(--brand);border-bottom-color:var(--accent)}
+:root[data-theme="dark"] .tabs button.on{color:#cbbcf5}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+.banner{background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.banner.info{background:var(--brand-soft);color:var(--brand);border-color:var(--brand)}
+/* modal */
+.ov{position:fixed;inset:0;background:rgba(20,14,35,.5);display:none;align-items:flex-start;justify-content:center;padding:30px 14px;overflow:auto;z-index:20}
+.ov.open{display:flex}
+.modal{background:var(--surface);border-radius:14px;width:min(860px,100%);padding:20px 22px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal.wide{width:min(1100px,100%)}
+.mhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 14px}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:600}
+.form label.full{grid-column:1/-1}
+.form label.chk{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-weight:500}
+.fsec{grid-column:1/-1;font-family:var(--display);font-weight:600;font-size:16px;color:var(--brand);border-bottom:2px solid var(--accent);padding-bottom:3px;margin-top:8px}
+:root[data-theme="dark"] .fsec{color:#cbbcf5}
+.mfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
+.pieces{display:grid;gap:6px}
+.piece{display:grid;grid-template-columns:28px 1fr 150px 170px;gap:8px;align-items:center;padding:6px 8px;border-radius:8px;background:var(--surface2)}
+.piece.ok{background:var(--accent-soft)}
+.piece input[type=checkbox]{width:18px;height:18px}
+.toast{position:fixed;bottom:18px;right:18px;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:9px;z-index:40;opacity:0;transform:translateY(10px);transition:.2s;max-width:360px}
+.toast.show{opacity:1;transform:none}
+.svc{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.svc .card{padding:12px}
+.svc .card b{font-family:var(--display);font-size:26px}
+.kv{display:grid;grid-template-columns:170px 1fr;gap:4px 12px;font-size:14px}
+.kv div:nth-child(odd){color:var(--muted)}
+.mobile-nav{display:none}
+#auth{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;padding:20px;z-index:30;overflow:auto}
+#auth.open{display:flex}
+.authbox{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:28px;width:min(420px,100%);box-shadow:0 10px 40px rgba(30,20,60,.12)}
+.authbox h1{font-size:28px}.authbox .form{grid-template-columns:1fr}
+.authlogo{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--brand) 0 60%,var(--accent) 60%);margin-bottom:18px}
+.err{color:var(--bad);font-size:14px;min-height:20px;margin-top:8px}
+.side-foot .btn{background:transparent;color:#fff;border-color:rgba(255,255,255,.35);margin-top:6px;width:100%}
+.side-foot b{display:block;font-size:14px}
+a{color:var(--brand);text-underline-offset:2px}
+:root[data-theme="dark"] a{color:#cbbcf5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) a{color:#cbbcf5}}
+nav a{color:#fff!important}
+td b{white-space:nowrap}
+.nw{flex-wrap:nowrap}
+@media (max-width:820px){
+  .app{grid-template-columns:1fr}
+  aside{position:static;height:auto;flex-direction:row;overflow-x:auto;padding:10px;gap:4px}
+  aside .logo,aside .logo-bar,aside .side-foot{display:none}
+  nav{display:flex;gap:4px} nav a{white-space:nowrap}
+  main{padding:16px}
+  .piece{grid-template-columns:28px 1fr}
+  .kv{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="logo">ERP RH<small>SECOP &amp; FOOD · Procédure RH-01</small></div>
+    <div class="logo-bar"></div>
+    <nav id="nav"></nav>
+    <div class="side-foot" id="who"></div>
+  </aside>
+  <main id="main"><div class="empty">Chargement des données…</div></main>
+</div>
+<div class="ov" id="ov"><div class="modal" id="modal"></div></div>
+<div id="auth"><div class="authbox" id="authbox"></div></div>
+<div class="toast" id="toast"></div>
+<input type="file" id="fileIn" accept=".xlsx,.xls,.csv" hidden>
+
+<script>
+"use strict";
+/* ================= CONSTANTES ================= */
+const ENTITES=["SECOP","FOOD"];
+const PIECES=[
+ ["p1","Fiche individuelle de renseignements",true],["p2","Copie d'une pièce d'identité valide",true],["p3","Curriculum vitae",true],
+ ["p4","Copies des diplômes et attestations professionnelles utiles",true],["p5","Contrat de travail signé",true],["p6","Fiche de poste",true],
+ ["p7","Documents relatifs à l'embauche",true],["p8","Avenants éventuels au contrat",false],["p9","Documents relatifs aux congés et permissions",false],
+ ["p10","Courriers et correspondances administratives",false],["p11","Documents relatifs aux formations et évaluations",false],
+ ["p12","Documents relatifs aux mesures disciplinaires, le cas échéant",false],["p13","Documents relatifs à la cessation du contrat de travail",false]];
+const DEF_PARAMS={
+  services:["Direction générale","Direction Administrative et Financière","Ressources humaines","Commercial","Communication","Production","Qualité / HSE","Magasin","Informatique","Logistique / Transport","Maintenance","Sécurité / Gardiennage"],
+  categories:["Personnel administratif et d'encadrement","Agent d'exécution","Gardien","Chauffeur","Autre"],
+  congeParMois:2.5, alerteContratJours:30, alerteVisiteJours:30, delaiRegulJours:15,
+  typesConge:["Congé annuel","Permission exceptionnelle","Congé maladie","Congé maternité","Congé sans solde","Absence non justifiée","Mission"],
+  nonPayes:["Congé sans solde","Absence non justifiée"]
+};
+const SERVICES_TACHES=["RH","Paie / DAF","HSE","Magasin","Informatique","Direction générale"];
+const CONTRATS=["CDI","CDD","Journalier","Stage","Prestataire"];
+const MAT_CATS=["Informatique","Téléphone","EPI","Tenue de travail","Outillage","Véhicule / engin","Mobilier","Autre"];
+const MAT_ETATS=["Neuf","Bon","Usé","Hors service"];
+const HSE_TYPES={visite:"Visite médicale",formation:"Formation HSE / hygiène",epi:"Dotation EPI",accident:"Accident / incident du travail"};
+const VISITES=["Visite d'embauche","Visite périodique","Visite de reprise","Certificat d'aptitude manipulation des denrées"];
+const VIEWS=[["tableau-de-bord","Tableau de bord"],["personnel","Personnel"],["dossiers","Dossiers incomplets"],["conges","Congés & absences"],["paie","Paie (lien DAF)"],["hse","HSE"],["materiel","Matériel"],["taches","Tâches inter-services"],["rapports","Rapports DG"],["parametres","Paramètres"]];
+
+/* ================= ÉTAT ================= */
+const COLS=["employes","conges","paie","hse","materiel","taches","journal","incidents"];
+const S={params:{...DEF_PARAMS},loaded:{},canWrite:true,uid:null};
+COLS.forEach(c=>S[c]=[]);
+const API="https://zzycbxyefporwjztybix.supabase.co/functions/v1/rh-api";
+let view="tableau-de-bord",TOKEN=null,VERSION="";
+const ROLE_LIB={rh:"Responsable RH",assistant_secop:"Assistant RH SECOP",assistant_food:"Assistant RH FOOD",daf:"DAF",dg:"Direction générale"};
+const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lsSet=(k,v)=>{try{v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
+const role=()=>S.me?S.me.role:"";
+const isAssist=()=>role().startsWith("assistant");
+class ApiErr extends Error{constructor(m,st){super(m);this.status=st}}
+async function api(action,payload){
+  let r;try{r=await fetch(API,{method:"POST",headers:{"content-type":"application/json",...(TOKEN?{authorization:"Bearer "+TOKEN}:{})},body:JSON.stringify({action,payload:payload||{}})})}catch(e){throw new ApiErr("Connexion impossible au serveur. Vérifiez internet.",0)}
+  let j={};try{j=await r.json()}catch(e){}
+  if(!r.ok||!j.ok){const m=j.error||"Erreur serveur.";if(r.status===401&&action!=="auth.login"){logout(m)}else if(r.status===428){showChangePw(true)}throw new ApiErr(m,r.status)}
+  return j.data;
+}
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const todayISO=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const addDays=(iso,n)=>{const d=new Date(iso+"T12:00:00");d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+const diffDays=(a,b)=>Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/864e5);
+const fd=iso=>iso?iso.split("-").reverse().join("/"):"";
+const monthEnd=m=>m+"-"+String(new Date(+m.slice(0,4),+m.slice(5,7),0).getDate()).padStart(2,"0");
+const curMonth=()=>todayISO().slice(0,7);
+const fmtMonth=m=>{const [y,mo]=m.split("-");return ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"][+mo-1]+" "+y};
+const money=n=>(Math.round(+n||0)).toLocaleString("fr-FR").replace(/ /g," ")+" FCFA";
+const num=n=>(+n||0).toLocaleString("fr-FR").replace(/ /g," ");
+const emp=id=>S.employes.find(e=>e.id===id);
+const nomE=e=>e?((e.nom||"").toUpperCase()+" "+(e.prenom||"")).trim():"—";
+const nomId=id=>nomE(emp(id));
+const actifs=()=>S.employes.filter(e=>e.actif!==false);
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),3200)}
+
+/* ================= RÈGLES MÉTIER ================= */
+function piecesOblig(e){const k=PIECES.filter(p=>p[2]).map(p=>p[0]);if(e.actif===false)k.push("p13");return k}
+function manquantes(e){const p=e.pieces||{};return piecesOblig(e).filter(k=>!(p[k]&&p[k].ok))}
+function complet(e){return manquantes(e).length===0}
+function tauxCompletude(list){const a=list.filter(e=>e.actif!==false);if(!a.length)return 0;return Math.round(a.filter(complet).length/a.length*1000)/10}
+function pieceLabel(k){return (PIECES.find(p=>p[0]===k)||[k,k])[1]}
+function joursPeriode(c){if(!c.debut||!c.fin)return 0;return Math.max(0,diffDays(c.debut,c.fin)+1)}
+function soldeConge(e,annee){
+  annee=annee||+todayISO().slice(0,4);
+  const debutAnnee=annee+"-01-01",emb=e.dateEmbauche||debutAnnee;
+  const depart=emb>debutAnnee?emb:debutAnnee;
+  const fin=todayISO().slice(0,4)==String(annee)?todayISO():annee+"-12-31";
+  let mois=0;if(fin>=depart){const a=new Date(depart+"T12:00:00"),b=new Date(fin+"T12:00:00");mois=(b.getFullYear()-a.getFullYear())*12+(b.getMonth()-a.getMonth())+(b.getDate()>=a.getDate()?1:0);mois=Math.max(0,Math.min(12,mois))}
+  const acquis=Math.round(mois*(+S.params.congeParMois||0)*10)/10;
+  const pris=S.conges.filter(c=>c.empId===e.id&&c.type==="Congé annuel"&&c.statut==="Validé"&&(c.debut||"").startsWith(String(annee))).reduce((s,c)=>s+(+c.jours||joursPeriode(c)),0);
+  return {acquis,pris,solde:Math.round((acquis-pris)*10)/10};
+}
+function joursNonPayes(empId,mois){
+  const d0=mois+"-01",dEnd=monthEnd(mois);
+  return S.conges.filter(c=>c.empId===empId&&c.statut==="Validé"&&(S.params.nonPayes||[]).includes(c.type)&&c.debut<=dEnd&&c.fin>=d0)
+    .reduce((s,c)=>{const a=c.debut>d0?c.debut:d0,b=c.fin<dEnd?c.fin:dEnd;return s+diffDays(a,b)+1},0);
+}
+function contratAlerte(e){if(e.actif===false||!e.dateFinContrat)return null;const j=diffDays(todayISO(),e.dateFinContrat);if(j<0)return {niv:"bad",j,txt:"Contrat échu depuis "+(-j)+" j"};if(j<=(+S.params.alerteContratJours||30))return {niv:"warn",j,txt:"Fin de contrat dans "+j+" j"};return null}
+function derniereVisite(empId){return S.hse.filter(h=>h.type==="visite"&&h.empId===empId).sort((a,b)=>(b.date||"").localeCompare(a.date||""))[0]}
+function hseAlertes(){
+  if(role()==="daf")return [];
+  const out=[],t=todayISO(),lim=+S.params.alerteVisiteJours||30;
+  actifs().forEach(e=>{const v=derniereVisite(e.id);
+    if(!v)out.push({niv:"warn",empId:e.id,txt:"Aucune visite médicale enregistrée"});
+    else if(v.echeance){const j=diffDays(t,v.echeance);if(j<0)out.push({niv:"bad",empId:e.id,txt:"Visite médicale échue ("+fd(v.echeance)+")"});else if(j<=lim)out.push({niv:"warn",empId:e.id,txt:"Visite médicale à renouveler le "+fd(v.echeance)});}
+    if(v&&v.resultat==="Inapte")out.push({niv:"bad",empId:e.id,txt:"Déclaré inapte : adapter le poste"});
+  });
+  S.hse.filter(h=>h.type==="formation"&&h.echeance&&emp(h.empId)&&emp(h.empId).actif!==false).forEach(h=>{const j=diffDays(t,h.echeance);if(j<0)out.push({niv:"bad",empId:h.empId,txt:"Recyclage échu : "+h.libelle});});
+  return out;
+}
+function matNonRestitue(){return S.materiel.filter(m=>m.empId&&emp(m.empId)&&emp(m.empId).actif===false)}
+function anomalies(){
+  const out=[];
+  actifs().forEach(e=>{
+    if(e.typeContrat==="CDD"&&!e.dateFinContrat)out.push({empId:e.id,txt:"CDD sans date de fin"});
+    const c=contratAlerte(e);if(c&&c.niv==="bad")out.push({empId:e.id,txt:c.txt+" alors que le salarié est actif"});
+    ["telephone","poste","service","dateEmbauche"].forEach(k=>{if(!e[k])out.push({empId:e.id,txt:"Information manquante : "+({telephone:"téléphone",poste:"poste",service:"service",dateEmbauche:"date d'embauche"})[k]})});
+    if(!e.salaireBase)out.push({empId:e.id,txt:"Salaire de base non renseigné (paie)"});
+  });
+  matNonRestitue().forEach(m=>out.push({empId:m.empId,txt:"Matériel non restitué après départ : "+m.designation}));
+  return out;
+}
+
+/* ================= DB ================= */
+function upsertLocal(col,doc){if(col==="params"){if(doc.id==="general")S.params={...DEF_PARAMS,...doc};return}const L=S[col],i=L.findIndex(d=>d.id===doc.id);if(i>=0)L[i]=doc;else L.push(doc)}
+async function save(col,id,data,isNew){
+  data.updatedAt=new Date().toISOString();if(isNew){data.createdAt=data.updatedAt;data.par=S.uid||null}
+  try{const r=await api("doc.save",{col,id:id||"",data,mode:isNew&&id?"set":"merge"});upsertLocal(col,r.doc);softRender();return r.id}
+  catch(e){toast(e.message||"Enregistrement impossible.");throw e}
+}
+async function del(col,id){try{await api("doc.delete",{col,id});S[col]=S[col].filter(d=>d.id!==id);softRender()}catch(e){toast(e.message||"Suppression impossible.");throw e}}
+async function logJournal(empId,changes,motif){if(!changes.length)return;try{await save("journal",null,{date:todayISO(),empId,changes,motif:motif||""},true)}catch(e){}}
+async function creerTaches(list){for(const t of list){try{await save("taches",null,{statut:"À faire",creeLe:todayISO(),...t},true)}catch(e){break}}}
+
+/* ================= ÉVÉNEMENTS INTER-SERVICES ================= */
+function tachesEmbauche(e,opts){
+  const t=todayISO(),n=nomE(e),L=[];
+  L.push({titre:"Collecter et vérifier les pièces du dossier de "+n,service:"RH",empId:e.id,evenement:"Embauche",echeance:addDays(t,7)});
+  L.push({titre:"Intégrer "+n+" dans la paie (salaire de base "+money(e.salaireBase)+", entrée le "+fd(e.dateEmbauche)+")",service:"Paie / DAF",empId:e.id,evenement:"Embauche",echeance:addDays(t,5)});
+  if(opts.visite)L.push({titre:"Programmer la visite médicale d'embauche de "+n,service:"HSE",empId:e.id,evenement:"Embauche",echeance:addDays(t,15)});
+  if(opts.induction)L.push({titre:"Formation d'accueil sécurité et hygiène pour "+n,service:"HSE",empId:e.id,evenement:"Embauche",echeance:addDays(t,7)});
+  if(opts.epi)L.push({titre:"Remettre tenue de travail et EPI à "+n+" ("+(e.poste||"poste à préciser")+")",service:"Magasin",empId:e.id,evenement:"Embauche",echeance:addDays(t,3)});
+  if(opts.info)L.push({titre:"Créer les accès informatiques et préparer le poste de "+n,service:"Informatique",empId:e.id,evenement:"Embauche",echeance:addDays(t,3)});
+  return L;
+}
+function tachesSortie(e){
+  const t=todayISO(),n=nomE(e),mats=S.materiel.filter(m=>m.empId===e.id),L=[];
+  const it=mats.filter(m=>["Informatique","Téléphone"].includes(m.categorie)),mg=mats.filter(m=>!["Informatique","Téléphone"].includes(m.categorie));
+  L.push({titre:"Récupérer le matériel remis à "+n+(mg.length?" : "+mg.map(m=>m.designation).join(", "):" (vérifier tenues et EPI)"),service:"Magasin",empId:e.id,evenement:"Départ",echeance:addDays(t,2)});
+  L.push({titre:"Désactiver les accès informatiques de "+n+(it.length?" et récupérer : "+it.map(m=>m.designation).join(", "):""),service:"Informatique",empId:e.id,evenement:"Départ",echeance:addDays(t,1)});
+  L.push({titre:"Établir le solde de tout compte de "+n+" (sortie le "+fd(e.dateSortie)+")",service:"Paie / DAF",empId:e.id,evenement:"Départ",echeance:addDays(t,7)});
+  L.push({titre:"Remettre le certificat de travail et classer les documents de cessation de "+n,service:"RH",empId:e.id,evenement:"Départ",echeance:addDays(t,7)});
+  return L;
+}
+function tachesMutation(e,ch){
+  const t=todayISO(),n=nomE(e),L=[],keys=ch.map(c=>c.champ);
+  if(keys.includes("Salaire de base"))L.push({titre:"Appliquer le nouveau salaire de base de "+n+" : "+money(e.salaireBase)+" (après validation de l'autorité compétente)",service:"Paie / DAF",empId:e.id,evenement:"Modification",echeance:addDays(t,5)});
+  if(keys.includes("Poste")||keys.includes("Service")){
+    L.push({titre:"Mettre à jour les droits d'accès informatiques de "+n+" (nouveau poste : "+(e.poste||"")+", "+(e.service||"")+")",service:"Informatique",empId:e.id,evenement:"Mutation",echeance:addDays(t,3)});
+    L.push({titre:"Évaluer les besoins en formation et EPI de "+n+" au nouveau poste",service:"HSE",empId:e.id,evenement:"Mutation",echeance:addDays(t,10)});
+    L.push({titre:"Préparer l'avenant au contrat et la nouvelle fiche de poste de "+n,service:"RH",empId:e.id,evenement:"Mutation",echeance:addDays(t,7)});
+  }
+  return L;
+}
+
+/* ================= NAV / RENDER ================= */
+function navCounts(){return{dossiers:actifs().filter(e=>!complet(e)).length,taches:S.taches.filter(t=>t.statut!=="Fait").length,hse:hseAlertes().filter(a=>a.niv==="bad").length}}
+function visibleViews(){return VIEWS.filter(([k])=>!(k==="hse"&&role()==="daf")&&!(k==="parametres"&&role()!=="rh")).concat(role()==="rh"?[["utilisateurs","Utilisateurs"]]:[])}
+function renderNav(){const c=navCounts();$("#nav").innerHTML=visibleViews().map(([k,l])=>`<a href="#${k}" class="${k===view?"on":""}">${esc(l)}${c[k]?`<span class="cnt">${c[k]}</span>`:""}</a>`).join("")}
+let pending=false,ptrDown=false;
+function uiBusy(){const a=document.activeElement;return ptrDown||(a&&$("#main").contains(a)&&/INPUT|SELECT|TEXTAREA/.test(a.tagName)&&a.type!=="checkbox")}
+function softRender(){if(uiBusy()){pending=true;renderNav();return}render()}
+function flush(){setTimeout(()=>{if(pending&&!uiBusy()){pending=false;render()}},0)}
+document.addEventListener("pointerdown",()=>{ptrDown=true},true);
+document.addEventListener("pointerup",()=>{ptrDown=false;flush()},true);
+document.addEventListener("focusout",flush);
+function render(){
+  pending=false;if(!S.me)return;renderNav();
+  const f=R[view]||R["tableau-de-bord"];
+  $("#main").innerHTML=demoBanner()+(S.canWrite?"":`<div class="banner info">${role()==="daf"?"Profil DAF : consultation, validation des variables de paie et traitement des tâches Paie / DAF.":"Profil Direction générale : consultation de tous les modules, rapports et traitement des tâches de la Direction générale."}</div>`)+f();
+  (A[view]||(()=>{}))();
+}
+function demoBanner(){const n=COLS.reduce((s,c)=>s+S[c].filter(d=>d.demo).length,0);if(!n)return"";return `<div class="banner"><span><b>Données d'exemple affichées</b> (${n} fiches marquées « exemple »). Elles servent à découvrir l'outil.</span>${S.canWrite?`<button class="btn sm dan" data-act="purge-demo">Supprimer les exemples</button>`:""}</div>`}
+const dis=()=>S.canWrite?"":"disabled";
+const SERV_ROLE={daf:"Paie / DAF",dg:"Direction générale"};
+const canTache=t=>S.canWrite||(SERV_ROLE[role()]&&t.service===SERV_ROLE[role()]);
+const disT=t=>canTache(t)?"":"disabled";
+function head(t,s,btns){return `<div class="top"><div><h1>${esc(t)}</h1>${s?`<div class="sub">${s}</div>`:""}</div><div class="row">${btns||""}</div></div>`}
+function pillStat(s){const m={"À faire":"p-warn","En cours":"p-b","Fait":"p-ok","Validé":"p-ok","En attente":"p-warn","Refusé":"p-bad","Brouillon":"p-n","Transmis à la DAF":"p-b","Validé DAF":"p-ok","Ouvert":"p-bad","Clôturé":"p-ok","En cours de régularisation":"p-warn","Régularisé":"p-ok","Non demandé":"p-n"};return `<span class="pill ${m[s]||"p-n"}">${esc(s)}</span>`}
+function empOptions(sel,all){return `<option value="">— Choisir un salarié —</option>`+(all?S.employes:actifs()).slice().sort((a,b)=>nomE(a).localeCompare(nomE(b))).map(e=>`<option value="${e.id}" ${e.id===sel?"selected":""}>${esc(nomE(e))} · ${esc(e.matricule||"")}</option>`).join("")}
+const opts=(arr,sel)=>arr.map(o=>`<option ${o===sel?"selected":""}>${esc(o)}</option>`).join("");
+
+/* ================= VUES ================= */
+const R={},A={};
+
+R["tableau-de-bord"]=()=>{
+  const act=actifs(),t=todayISO(),taux=tauxCompletude(S.employes),inc=act.filter(e=>!complet(e));
+  const contrats=act.map(e=>({e,c:contratAlerte(e)})).filter(x=>x.c).sort((a,b)=>a.c.j-b.c.j);
+  const absents=S.conges.filter(c=>c.statut==="Validé"&&c.debut<=t&&c.fin>=t);
+  const enAttente=S.conges.filter(c=>c.statut==="En attente");
+  const hse=hseAlertes(),mat=matNonRestitue(),open=S.taches.filter(x=>x.statut!=="Fait");
+  const retard=open.filter(x=>x.echeance&&x.echeance<t);
+  const parEnt=ENTITES.map(n=>act.filter(e=>e.entite===n).length);
+  const mois=curMonth(),paieMois=S.paie.filter(p=>p.mois===mois),transmis=paieMois.some(p=>p.statut!=="Brouillon");
+  const alerts=[];
+  contrats.forEach(x=>alerts.push([x.c.niv,`<b>${esc(nomE(x.e))}</b> · ${esc(x.c.txt)} (${esc(x.e.typeContrat||"")}, fin le ${fd(x.e.dateFinContrat)})`]));
+  hse.slice(0,8).forEach(a=>alerts.push([a.niv,`<b>${esc(nomId(a.empId))}</b> · ${esc(a.txt)}`]));
+  mat.forEach(m=>alerts.push(["bad",`<b>${esc(nomId(m.empId))}</b> a quitté l'entreprise et détient encore : ${esc(m.designation)}`]));
+  enAttente.forEach(c=>alerts.push(["b",`Demande de ${esc(c.type.toLowerCase())} de <b>${esc(nomId(c.empId))}</b> à traiter (${fd(c.debut)} → ${fd(c.fin)})`]));
+  if(!transmis&&act.length)alerts.push(["warn",`Variables de paie de ${fmtMonth(mois)} pas encore transmises à la DAF`]);
+  const ord={bad:0,warn:1,b:2,ok:3};alerts.sort((a,b)=>ord[a[0]]-ord[b[0]]);
+  const svc=SERVICES_TACHES.map(s=>{const o=open.filter(x=>x.service===s);return `<div class="card"><div class="muted small">${esc(s)}</div><b>${o.length}</b> <span class="small ${o.some(x=>x.echeance&&x.echeance<t)?"":"muted"}" style="${o.some(x=>x.echeance&&x.echeance<t)?"color:var(--bad)":""}">${o.filter(x=>x.echeance&&x.echeance<t).length} en retard</span></div>`}).join("");
+  return head("Tableau de bord","Situation au "+fd(t)+" · "+act.length+" salariés actifs",`<button class="btn pri" data-act="new-emp" ${dis()}>+ Nouveau salarié</button>`)+
+  `<div class="grid g4" style="margin-bottom:14px">
+    <div class="card kpi stripe-brand"><div class="v">${act.length}</div><div class="l">Effectif actif · SECOP ${parEnt[0]} · FOOD ${parEnt[1]}</div></div>
+    <div class="card kpi ${taux>=90?"stripe-ok":taux>=60?"stripe-warn":"stripe-bad"}"><div class="v">${String(taux).replace(".",",")} %</div><div class="l">Taux de complétude des dossiers</div><div class="bar"><i style="width:${taux}%"></i></div></div>
+    <div class="card kpi ${inc.length?"stripe-warn":"stripe-ok"}"><div class="v">${inc.length}</div><div class="l">Dossiers incomplets</div></div>
+    <div class="card kpi ${contrats.length?"stripe-warn":"stripe-ok"}"><div class="v">${contrats.length}</div><div class="l">Contrats à renouveler ou échus</div></div>
+    <div class="card kpi stripe-brand"><div class="v">${absents.length}</div><div class="l">Absents aujourd'hui (congés, missions…)</div></div>
+    <div class="card kpi ${hse.some(a=>a.niv==="bad")?"stripe-bad":hse.length?"stripe-warn":"stripe-ok"}"><div class="v">${hse.length}</div><div class="l">Alertes HSE (visites, recyclages)</div></div>
+  </div>
+  <div class="grid g2">
+    <div class="card"><h2>À traiter en priorité</h2>${alerts.length?alerts.slice(0,14).map(a=>`<div class="alert"><span class="dot d-${a[0]}"></span><div>${a[1]}</div></div>`).join(""):`<div class="empty">Aucune alerte. Tout est à jour.</div>`}${alerts.length>14?`<div class="muted small" style="margin-top:6px">+ ${alerts.length-14} autres alertes dans les modules.</div>`:""}</div>
+    <div class="card"><h2>Tâches ouvertes par service</h2><div class="svc">${svc}</div>
+      <div style="margin-top:14px"><h2>Absents aujourd'hui</h2>${absents.length?`<div class="tbl-wrap"><table><tr><th>Salarié</th><th>Motif</th><th>Retour</th></tr>${absents.map(c=>`<tr><td>${esc(nomId(c.empId))}</td><td>${esc(c.type)}</td><td>${fd(addDays(c.fin,1))}</td></tr>`).join("")}</table></div>`:`<div class="muted">Personne n'est absent aujourd'hui.</div>`}</div>
+      ${retard.length?`<div class="banner" style="margin-top:14px;margin-bottom:0"><span>${retard.length} tâche(s) inter-services en retard</span><a class="btn sm" href="#taches">Voir</a></div>`:""}
+    </div>
+  </div>`;
+};
+
+/* ---------- PERSONNEL ---------- */
+let fP={q:"",ent:"",svc:"",st:"actif"};
+R.personnel=()=>{
+  const q=fP.q.toLowerCase();
+  const list=S.employes.filter(e=>(fP.st==="tous"||(fP.st==="actif"?e.actif!==false:e.actif===false))&&(!fP.ent||e.entite===fP.ent)&&(!fP.svc||e.service===fP.svc)&&(!q||[e.nom,e.prenom,e.matricule,e.poste,e.telephone].join(" ").toLowerCase().includes(q))).sort((a,b)=>nomE(a).localeCompare(nomE(b)));
+  return head("Registre général du personnel",list.length+" salarié(s) affiché(s) · cliquez sur une ligne pour ouvrir le dossier individuel",`<button class="btn" data-act="export-personnel">Exporter Excel</button><button class="btn pri" data-act="new-emp" ${dis()}>+ Nouveau salarié</button>`)+
+  `<div class="row" style="margin-bottom:12px"><input class="search" id="fq" placeholder="Rechercher nom, matricule, poste, téléphone" value="${esc(fP.q)}" aria-label="Rechercher">
+   <select id="fent" aria-label="Entité"><option value="">Toutes entités</option>${opts(ENTITES,fP.ent)}</select>
+   <select id="fsvc" aria-label="Service"><option value="">Tous services</option>${opts(S.params.services,fP.svc)}</select>
+   <select id="fst" aria-label="Statut"><option value="actif" ${fP.st==="actif"?"selected":""}>Actifs</option><option value="sortis" ${fP.st==="sortis"?"selected":""}>Sortis</option><option value="tous" ${fP.st==="tous"?"selected":""}>Tous</option></select></div>
+  <div class="tbl-wrap"><table><tr><th>Matricule</th><th>Nom et prénom</th><th>Entité</th><th>Service</th><th>Poste</th><th>Contrat</th><th>Embauche</th><th>Dossier</th><th>Alerte</th></tr>
+  ${list.map(e=>{const m=manquantes(e),c=contratAlerte(e);return `<tr class="click" data-emp="${e.id}"><td>${esc(e.matricule)}</td><td><b>${esc(nomE(e))}</b>${e.demo?' <span class="pill p-n">exemple</span>':""}</td><td>${esc(e.entite)}</td><td>${esc(e.service)}</td><td>${esc(e.poste)}</td><td>${esc(e.typeContrat)}</td><td>${fd(e.dateEmbauche)}</td><td>${m.length?`<span class="pill p-warn">${m.length} pièce(s) manquante(s)</span>`:'<span class="pill p-ok">Complet</span>'}</td><td>${e.actif===false?'<span class="pill p-n">Sorti le '+fd(e.dateSortie)+'</span>':c?`<span class="pill p-${c.niv}">${esc(c.txt)}</span>`:""}</td></tr>`}).join("")||`<tr><td colspan="9"><div class="empty">Aucun salarié. Ajoutez-en un avec « + Nouveau salarié » ou importez votre liste Excel depuis Paramètres.</div></td></tr>`}
+  </table></div>`;
+};
+A.personnel=()=>{
+  const re=()=>{const p=$("#fq").selectionStart;render();const i=$("#fq");i.focus();i.setSelectionRange(p,p)};
+  $("#fq").addEventListener("input",e=>{fP.q=e.target.value;clearTimeout(fP._t);fP._t=setTimeout(re,250)});
+  $("#fent").onchange=e=>{fP.ent=e.target.value;render()};$("#fsvc").onchange=e=>{fP.svc=e.target.value;render()};$("#fst").onchange=e=>{fP.st=e.target.value;render()};
+};
+
+/* ---------- FICHE SALARIÉ ---------- */
+const EMP_FIELDS=[
+ ["sec","Identification"],["nom","Nom","text",1],["prenom","Prénom","text",1],["sexe","Sexe","select",0,["","Masculin","Féminin"]],["dateNaissance","Date de naissance","date"],
+ ["telephone","Téléphone","text"],["adresse","Adresse","text"],["situationFamiliale","Situation familiale","select",0,["","Célibataire","Marié(e)","Divorcé(e)","Veuf(ve)"]],["nbEnfants","Nombre d'enfants","number"],
+ ["numeroCNSS","N° CNSS","text"],["contactUrgence","Personne à prévenir (nom, téléphone)","text"],
+ ["sec","Affectation et contrat"],["entite","Entité","select",1,ENTITES],["service","Service / département","select",1,"services"],["poste","Poste occupé","text",1],["categorie","Catégorie de personnel","select",0,"categories"],
+ ["statutEmploi","Statut","select",0,["Permanent","Temporaire"]],["typeContrat","Type de contrat","select",1,CONTRATS],["dateEmbauche","Date d'embauche","date",1],["dateFinContrat","Date de fin de contrat (CDD, stage…)","date"],
+ ["finEssai","Fin de période d'essai","date"],["responsable","Responsable hiérarchique","text"],
+ ["sec","Rémunération (transmise à la paie)"],["salaireBase","Salaire de base mensuel (FCFA)","number"],["modePaiement","Mode de paiement","select",0,["","Virement bancaire","Espèces","Mobile money","Chèque"]],
+ ["notes","Observations","textarea"]
+];
+function fieldHTML(f,v){
+  const [k,label,type,req,o]=f;const id="f_"+k,r=req?"required":"";
+  if(type==="textarea")return `<label class="full" for="${id}">${esc(label)}<textarea id="${id}" name="${k}">${esc(v)}</textarea></label>`;
+  if(type==="select"){let arr=typeof o==="string"?S.params[o]:o;if(k==="entite"&&S.me&&S.me.entite)arr=[S.me.entite];return `<label for="${id}">${esc(label)}${req?" *":""}<select id="${id}" name="${k}" ${r}>${!req&&arr[0]!==""?"<option></option>":""}${opts(arr,v)}</select></label>`}
+  return `<label for="${id}">${esc(label)}${req?" *":""}<input id="${id}" name="${k}" type="${type}" value="${esc(v)}" ${r}></label>`;
+}
+function formHTML(fields,obj){return `<form class="form" id="frm">${fields.map(f=>f[0]==="sec"?`<div class="fsec">${esc(f[1])}</div>`:fieldHTML(f,obj[f[0]]??"")).join("")}</form>`}
+function readForm(fields){const o={},fr=$("#frm");for(const f of fields){if(f[0]==="sec")continue;const el=fr.elements[f[0]];if(!el)continue;o[f[0]]=f[2]==="number"?(el.value===""?"":+el.value):el.value.trim()}return o}
+function checkForm(){const fr=$("#frm");if(!fr.reportValidity())return false;return true}
+function openModal(html,wide){$("#modal").className="modal"+(wide?" wide":"");$("#modal").innerHTML=html;$("#ov").classList.add("open");const f=$("#modal").querySelector("input,select,textarea,button");f&&f.focus()}
+function closeModal(){$("#ov").classList.remove("open");$("#modal").innerHTML="";render()}
+$("#ov").addEventListener("mousedown",e=>{if(e.target.id==="ov")closeModal()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("#ov").classList.contains("open"))closeModal()});
+
+function nouveauMatricule(ent){const n=S.employes.filter(e=>e.entite===ent).map(e=>+(String(e.matricule||"").split("-")[1]||0));return ent+"-"+String((n.length?Math.max(...n):0)+1).padStart(4,"0")}
+
+function newEmp(){
+  openModal(`<div class="mhead"><h2>Nouveau salarié</h2><button class="btn sm" data-act="close">Fermer</button></div>
+  <p class="muted small">Le matricule (identifiant interne unique) est attribué automatiquement. Les tâches cochées ci-dessous sont envoyées aux services concernés dès l'enregistrement.</p>
+  ${formHTML(EMP_FIELDS,{entite:(S.me&&S.me.entite)||"FOOD",statutEmploi:"Permanent",typeContrat:"CDI",dateEmbauche:todayISO()})}
+  <div class="form" style="margin-top:10px"><div class="fsec">Tâches à envoyer aux autres services</div>
+   <label class="chk"><input type="checkbox" id="o_visite" checked> HSE : visite médicale d'embauche</label>
+   <label class="chk"><input type="checkbox" id="o_induction" checked> HSE : formation d'accueil sécurité / hygiène</label>
+   <label class="chk"><input type="checkbox" id="o_epi" checked> Magasin : tenue de travail et EPI</label>
+   <label class="chk"><input type="checkbox" id="o_info"> Informatique : accès et poste de travail</label>
+   <div class="muted small full" style="grid-column:1/-1">La paie (DAF) et la collecte des pièces (RH) sont toujours créées.</div></div>
+  <div class="mfoot"><button class="btn" data-act="close">Annuler</button><button class="btn pri" data-act="save-new-emp">Enregistrer le salarié</button></div>`,true);
+}
+async function saveNewEmp(){
+  if(!checkForm())return;const d=readForm(EMP_FIELDS);
+  d.matricule=nouveauMatricule(d.entite);d.actif=true;d.pieces={};d.regul={statut:"Non demandé"};
+  const o={visite:$("#o_visite").checked,induction:$("#o_induction").checked,epi:$("#o_epi").checked,info:$("#o_info").checked};
+  try{const id=await save("employes",null,d,true);const e={...d,id};await logJournal(id,[{champ:"Création du dossier",ancien:"",nouveau:d.matricule}],"Embauche");
+    await creerTaches(tachesEmbauche(e,o));closeModal();toast("Salarié enregistré ("+d.matricule+"). Tâches envoyées aux services.");openEmp(id,"dossier")}catch(e){}
+}
+
+let empTab="infos";
+function openEmp(id,tab){empTab=tab||empTab||"infos";const e=emp(id);if(!e)return;
+  const tabs=[["infos","Informations"],["dossier","Pièces du dossier"],["conges","Congés"],["hse","HSE"],["materiel","Matériel"],["paie","Paie"],["historique","Historique"]];
+  const m=manquantes(e),c=contratAlerte(e);
+  openModal(`<div class="mhead"><div><h2 style="margin:0">${esc(nomE(e))}</h2><div class="muted small">${esc(e.matricule)} · ${esc(e.entite)} · ${esc(e.poste||"")} · ${esc(e.service||"")}</div></div>
+   <div class="row">${e.actif===false?'<span class="pill p-n">Sorti</span>':'<span class="pill p-ok">Actif</span>'}${m.length?`<span class="pill p-warn">${m.length} pièce(s) manquante(s)</span>`:'<span class="pill p-ok">Dossier complet</span>'}${c?`<span class="pill p-${c.niv}">${esc(c.txt)}</span>`:""}<button class="btn sm" data-act="close">Fermer</button></div></div>
+   <div class="tabs">${tabs.map(([k,l])=>`<button data-etab="${k}" class="${k===empTab?"on":""}">${l}</button>`).join("")}</div><div id="etab">${empTabHTML(e)}</div>`,true);
+  $("#modal").dataset.emp=id;bindEmpTab(e);
+}
+function empTabHTML(e){
+  const t=empTab;
+  if(t==="infos")return formHTML(EMP_FIELDS,e)+`<div class="mfoot">${e.actif!==false?`<button class="btn dan" data-act="sortie" ${dis()}>Enregistrer un départ</button>`:`<button class="btn" data-act="reintegrer" ${dis()}>Réintégrer</button>`}<button class="btn pri" data-act="save-emp" ${dis()}>Enregistrer les modifications</button></div>`;
+  if(t==="dossier"){const p=e.pieces||{},ob=piecesOblig(e);return `<p class="muted small">Cochez chaque pièce reçue et vérifiée (présence, lisibilité, cohérence). Indiquez où elle est classée (armoire, classeur, dossier numérique). Les pièces marquées * comptent pour la complétude.</p>
+   <div class="pieces">${PIECES.map(([k,l])=>{const x=p[k]||{};return `<div class="piece ${x.ok?"ok":""}"><input type="checkbox" data-pk="${k}" ${x.ok?"checked":""} ${dis()} aria-label="${esc(l)}"><div>${esc(l)}${ob.includes(k)?" *":""}</div><input type="date" data-pd="${k}" value="${esc(x.date||"")}" ${dis()} aria-label="Date de réception"><input data-pe="${k}" placeholder="Classement (ex. Armoire 2 / SECOP)" value="${esc(x.emplacement||"")}" ${dis()} aria-label="Emplacement"></div>`}).join("")}</div>
+   <div class="fsec" style="margin-top:14px">Documents médicaux</div><p class="muted small">Conformément à la procédure, les documents médicaux sont suivis séparément, dans l'onglet HSE, avec un accès limité.</p>
+   <div class="mfoot"><button class="btn pri" data-act="save-pieces" ${dis()}>Enregistrer le dossier</button></div>`}
+  if(t==="conges"){const s=soldeConge(e),L=S.conges.filter(c=>c.empId===e.id).sort((a,b)=>(b.debut||"").localeCompare(a.debut||""));return `<div class="grid g4" style="margin-bottom:12px"><div class="card kpi"><div class="v">${num(s.acquis)}</div><div class="l">Jours acquis ${todayISO().slice(0,4)}</div></div><div class="card kpi"><div class="v">${num(s.pris)}</div><div class="l">Jours de congé annuel pris</div></div><div class="card kpi ${s.solde<0?"stripe-bad":"stripe-ok"}"><div class="v">${num(s.solde)}</div><div class="l">Solde disponible</div></div></div>
+   <div class="row" style="margin-bottom:8px"><button class="btn pri sm" data-act="new-conge" data-e="${e.id}" ${dis()}>+ Nouvelle demande</button></div>${congeTable(L,false)}`}
+  if(t==="hse"){const L=S.hse.filter(h=>h.empId===e.id).sort((a,b)=>(b.date||"").localeCompare(a.date||""));return `<div class="row" style="margin-bottom:8px">${Object.entries(HSE_TYPES).map(([k,l])=>`<button class="btn sm" data-act="new-hse" data-t="${k}" data-e="${e.id}" ${dis()}>+ ${esc(l)}</button>`).join("")}</div>${hseTable(L,false)}`}
+  if(t==="materiel"){const L=S.materiel.filter(m=>m.empId===e.id);return `<p class="muted small">Matériel actuellement remis au salarié (magasin et informatique).</p>${matTable(L)}<div class="mfoot"><a class="btn" href="#materiel" data-act="close">Aller au module Matériel</a></div>`}
+  if(t==="paie"){const L=S.paie.filter(p=>p.empId===e.id).sort((a,b)=>b.mois.localeCompare(a.mois));return `<div class="kv" style="margin-bottom:12px"><div>Salaire de base</div><div><b>${money(e.salaireBase)}</b></div><div>Mode de paiement</div><div>${esc(e.modePaiement||"—")}</div><div>N° CNSS</div><div>${esc(e.numeroCNSS||"—")}</div></div>
+   <div class="tbl-wrap"><table><tr><th>Mois</th><th class="num">Jours non payés</th><th class="num">Primes</th><th class="num">Heures sup.</th><th class="num">Avances</th><th class="num">Brut indicatif</th><th>Statut</th></tr>${L.map(p=>{const c=calcPaie(e,p);return `<tr><td>${fmtMonth(p.mois)}</td><td class="num">${c.jnp}</td><td class="num">${num(p.primes)}</td><td class="num">${num(p.montantHS)}</td><td class="num">${num(p.avances)}</td><td class="num">${money(c.brut)}</td><td>${pillStat(p.statut||"Brouillon")}</td></tr>`}).join("")||`<tr><td colspan="7"><div class="empty">Aucune variable de paie saisie.</div></td></tr>`}</table></div>`}
+  if(t==="historique"){const L=S.journal.filter(j=>j.empId===e.id).sort((a,b)=>(b.updatedAt||"").localeCompare(a.updatedAt||""));return `<p class="muted small">Traçabilité des actes administratifs : chaque modification est enregistrée avec sa date.</p><div class="tbl-wrap"><table><tr><th>Date</th><th>Motif</th><th>Élément</th><th>Ancienne valeur</th><th>Nouvelle valeur</th></tr>${L.flatMap(j=>(j.changes||[]).map(c=>`<tr><td>${fd(j.date)}</td><td>${esc(j.motif)}</td><td>${esc(c.champ)}</td><td class="muted">${esc(c.ancien)}</td><td>${esc(c.nouveau)}</td></tr>`)).join("")||`<tr><td colspan="5"><div class="empty">Aucune modification enregistrée.</div></td></tr>`}</table></div>`}
+  return "";
+}
+function bindEmpTab(e){$("#modal").querySelectorAll("[data-etab]").forEach(b=>b.onclick=()=>{empTab=b.dataset.etab;openEmp(e.id)})}
+async function saveEmp(id){
+  if(!checkForm())return;const e=emp(id),d=readForm(EMP_FIELDS),ch=[];
+  EMP_FIELDS.forEach(f=>{if(f[0]==="sec")return;const a=e[f[0]]??"",b=d[f[0]]??"";if(String(a)!==String(b))ch.push({champ:f[1].replace(/ \(.*\)$/,""),ancien:f[2]==="date"?fd(a):String(a),nouveau:f[2]==="date"?fd(b):String(b)})});
+  if(!ch.length){toast("Aucune modification.");return}
+  try{await save("employes",id,d);await logJournal(id,ch,"Mise à jour");const tt=tachesMutation({...e,...d},ch);await creerTaches(tt);toast("Modifications enregistrées"+(tt.length?" · "+tt.length+" tâche(s) envoyée(s) aux services":""));openEmp(id)}catch(err){}
+}
+async function savePieces(id){
+  const e=emp(id),old=e.pieces||{},p={},ch=[];
+  PIECES.forEach(([k,l])=>{const ok=$(`[data-pk="${k}"]`).checked,date=$(`[data-pd="${k}"]`).value,emplacement=$(`[data-pe="${k}"]`).value.trim();
+    p[k]={ok,date:ok&&!date?todayISO():date,emplacement};if(!!(old[k]&&old[k].ok)!==ok)ch.push({champ:l,ancien:old[k]&&old[k].ok?"Reçue":"Manquante",nouveau:ok?"Reçue":"Manquante"})});
+  const upd={pieces:p};const tmp={...e,pieces:p};
+  if(complet(tmp)&&e.regul&&e.regul.statut==="En cours de régularisation")upd.regul={...e.regul,statut:"Régularisé",dateRegul:todayISO()};
+  try{await save("employes",id,upd);await logJournal(id,ch,"Dossier individuel");toast(complet(tmp)?"Dossier complet ✔":"Dossier enregistré : "+manquantes(tmp).length+" pièce(s) obligatoire(s) manquante(s)");openEmp(id)}catch(err){}
+}
+function sortieForm(id){const e=emp(id);openModal(`<div class="mhead"><h2>Départ de ${esc(nomE(e))}</h2><button class="btn sm" data-act="close">Fermer</button></div>
+  <form class="form" id="frm"><label>Date de sortie *<input type="date" name="dateSortie" required value="${todayISO()}"></label><label>Motif *<select name="motifSortie" required>${opts(["Fin de contrat","Démission","Licenciement","Retraite","Abandon de poste","Décès","Autre"])}</select></label><label class="full">Observations<textarea name="obs"></textarea></label></form>
+  <p class="muted small">À l'enregistrement : Magasin et Informatique reçoivent la liste du matériel à récupérer, la DAF le solde de tout compte, le RH le certificat de travail. La pièce « cessation du contrat » devient obligatoire.</p>
+  <div class="mfoot"><button class="btn" data-act="close">Annuler</button><button class="btn dan" data-act="save-sortie" data-e="${id}">Confirmer le départ</button></div>`)}
+async function saveSortie(id){if(!checkForm())return;const fr=$("#frm"),e=emp(id);const d={actif:false,dateSortie:fr.dateSortie.value,motifSortie:fr.motifSortie.value,obsSortie:fr.obs.value};
+  try{await save("employes",id,d);await logJournal(id,[{champ:"Départ",ancien:"Actif",nouveau:d.motifSortie+" le "+fd(d.dateSortie)}],"Départ");await creerTaches(tachesSortie({...e,...d}));closeModal();toast("Départ enregistré. Tâches envoyées au Magasin, à l'Informatique, à la DAF et au RH.")}catch(err){}}
+
+/* ---------- DOSSIERS INCOMPLETS ---------- */
+R.dossiers=()=>{
+  const L=actifs().concat(S.employes.filter(e=>e.actif===false&&!complet(e))).filter(e=>!complet(e)).sort((a,b)=>manquantes(b).length-manquantes(a).length);
+  const t=todayISO();const dem=S.employes.filter(e=>e.regul&&e.regul.dateDemande),reg=dem.filter(e=>e.regul.statut==="Régularisé"||complet(e));
+  return head("Suivi des dossiers incomplets",`${L.length} dossier(s) incomplet(s) · taux de régularisation ${dem.length?Math.round(reg.length/dem.length*100):0} % (${reg.length}/${dem.length} dossiers relancés)`,`<button class="btn" data-act="export-incomplets">Exporter Excel</button>`)+
+  `<div class="tbl-wrap"><table><tr><th>Nom et prénom</th><th>Entité</th><th>Service</th><th>Pièces manquantes</th><th>Demande de régularisation</th><th>Délai</th><th>Relances</th><th>Statut</th><th></th></tr>
+  ${L.map(e=>{const r=e.regul||{},late=r.delai&&r.delai<t;return `<tr><td><a href="#" data-open="${e.id}"><b>${esc(nomE(e))}</b></a></td><td>${esc(e.entite)}</td><td>${esc(e.service)}</td><td class="small">${manquantes(e).map(pieceLabel).map(esc).join("<br>")}</td><td>${fd(r.dateDemande)||'<span class="muted">—</span>'}</td><td>${r.delai?`<span class="pill ${late?"p-bad":"p-n"}">${fd(r.delai)}${late?" · dépassé":""}</span>`:"—"}</td><td class="num">${(r.relances||[]).length}</td><td>${pillStat(r.statut||"Non demandé")}</td>
+   <td><button class="btn sm" data-act="relance" data-e="${e.id}" ${dis()}>${r.dateDemande?"Relancer":"Demander"}</button></td></tr>`}).join("")||`<tr><td colspan="9"><div class="empty">Tous les dossiers sont complets.</div></td></tr>`}</table></div>
+  <p class="muted small" style="margin-top:10px">« Demander » enregistre la date de demande et fixe le délai (${S.params.delaiRegulJours} jours, modifiable dans Paramètres). « Relancer » ajoute une relance. Le message à transmettre au salarié est copié dans le presse-papiers.</p>`;
+};
+async function relance(id){const e=emp(id),r={...(e.regul||{})},t=todayISO();
+  if(!r.dateDemande){r.dateDemande=t;r.delai=addDays(t,+S.params.delaiRegulJours||15);r.relances=[];}else{r.relances=[...(r.relances||[]),t];}
+  r.statut="En cours de régularisation";
+  const msg=`Bonjour ${e.prenom||""} ${e.nom||""},\nLe service RH vous prie de fournir les pièces suivantes pour compléter votre dossier administratif, avant le ${fd(r.delai)} :\n- ${manquantes(e).map(pieceLabel).join("\n- ")}\nMerci.\nService des Ressources Humaines`;
+  try{await save("employes",id,{regul:r});await logJournal(id,[{champ:"Régularisation",ancien:"",nouveau:(r.relances.length?"Relance n°"+r.relances.length:"Demande")+" · délai "+fd(r.delai)}],"Dossier incomplet");
+   try{await navigator.clipboard.writeText(msg);toast("Enregistré. Message de relance copié : collez-le dans un SMS ou WhatsApp.")}catch(x){toast("Relance enregistrée.")}}catch(err){}}
+
+/* ---------- CONGÉS ---------- */
+let fC={st:"",mois:""};
+function congeTable(L,showEmp){return `<div class="tbl-wrap"><table><tr>${showEmp?"<th>Salarié</th>":""}<th>Type</th><th>Du</th><th>Au</th><th class="num">Jours</th><th>Motif</th><th>Statut</th><th>Paie</th><th></th></tr>
+ ${L.map(c=>`<tr>${showEmp?`<td><a href="#" data-open="${c.empId}">${esc(nomId(c.empId))}</a></td>`:""}<td>${esc(c.type)}</td><td>${fd(c.debut)}</td><td>${fd(c.fin)}</td><td class="num">${num(c.jours||joursPeriode(c))}</td><td class="small">${esc(c.motif)}</td><td>${pillStat(c.statut)}</td><td>${(S.params.nonPayes||[]).includes(c.type)?'<span class="pill p-warn">Retenue</span>':'<span class="muted small">Payé</span>'}</td>
+ <td><div class="row nw">${c.statut==="En attente"?`<button class="btn sm acc" data-act="conge-ok" data-id="${c.id}" ${dis()}>Valider</button><button class="btn sm dan" data-act="conge-ko" data-id="${c.id}" ${dis()}>Refuser</button>`:""}<button class="btn sm" data-act="edit-conge" data-id="${c.id}" ${dis()}>Modifier</button></div></td></tr>`).join("")||`<tr><td colspan="9"><div class="empty">Aucune demande.</div></td></tr>`}</table></div>`}
+R.conges=()=>{
+  const L=S.conges.filter(c=>(!fC.st||c.statut===fC.st)&&(!fC.mois||(c.debut||"").slice(0,7)<=fC.mois&&(c.fin||"").slice(0,7)>=fC.mois)).sort((a,b)=>(b.debut||"").localeCompare(a.debut||""));
+  return head("Congés et absences","Les absences non payées (congé sans solde, absence non justifiée) sont reportées automatiquement dans la paie du mois.",`<button class="btn" data-act="export-conges">Exporter Excel</button><button class="btn pri" data-act="new-conge" ${dis()}>+ Nouvelle demande</button>`)+
+  `<div class="row" style="margin-bottom:12px"><select id="cst" aria-label="Statut"><option value="">Tous statuts</option>${opts(["En attente","Validé","Refusé"],fC.st)}</select><label class="row small muted" for="cm">Mois <input type="month" id="cm" value="${fC.mois}"></label></div>`+congeTable(L,true)+
+  `<h2 style="margin-top:20px">Soldes de congé annuel ${todayISO().slice(0,4)}</h2><div class="tbl-wrap"><table><tr><th>Salarié</th><th>Entité</th><th class="num">Acquis</th><th class="num">Pris</th><th class="num">Solde</th></tr>${actifs().sort((a,b)=>nomE(a).localeCompare(nomE(b))).map(e=>{const s=soldeConge(e);return `<tr><td>${esc(nomE(e))}</td><td>${esc(e.entite)}</td><td class="num">${num(s.acquis)}</td><td class="num">${num(s.pris)}</td><td class="num"><b style="${s.solde<0?"color:var(--bad)":""}">${num(s.solde)}</b></td></tr>`}).join("")}</table></div><p class="muted small">Calcul : ${num(S.params.congeParMois)} jours par mois de présence dans l'année (paramétrable).</p>`;
+};
+A.conges=()=>{$("#cst").onchange=e=>{fC.st=e.target.value;render()};$("#cm").onchange=e=>{fC.mois=e.target.value;render()}};
+function congeForm(c,empId){c=c||{};const isNew=!c.id;
+  openModal(`<div class="mhead"><h2>${isNew?"Nouvelle demande":"Modifier la demande"}</h2><button class="btn sm" data-act="close">Fermer</button></div>
+  <form class="form" id="frm"><label class="full">Salarié *<select name="empId" required>${empOptions(c.empId||empId)}</select></label>
+  <label>Type *<select name="type" required>${opts(S.params.typesConge,c.type)}</select></label><label>Statut<select name="statut">${opts(["En attente","Validé","Refusé"],c.statut||"En attente")}</select></label>
+  <label>Du *<input type="date" name="debut" required value="${esc(c.debut||todayISO())}"></label><label>Au *<input type="date" name="fin" required value="${esc(c.fin||todayISO())}"></label>
+  <label>Nombre de jours<input type="number" step="0.5" name="jours" value="${esc(c.jours||"")}" placeholder="calculé si vide"></label><label class="full">Motif / justificatif<textarea name="motif">${esc(c.motif||"")}</textarea></label></form>
+  <div class="mfoot">${!isNew?`<button class="btn dan" data-act="del-conge" data-id="${c.id}">Supprimer</button>`:""}<button class="btn" data-act="close">Annuler</button><button class="btn pri" data-act="save-conge" data-id="${c.id||""}">Enregistrer</button></div>`)}
+async function saveConge(id){if(!checkForm())return;const f=$("#frm");const d={empId:f.empId.value,type:f.type.value,statut:f.statut.value,debut:f.debut.value,fin:f.fin.value,motif:f.motif.value.trim()};
+  if(d.fin<d.debut){toast("La date de fin est avant la date de début.");return}
+  d.jours=f.jours.value?+f.jours.value:joursPeriode(d);if(d.statut==="Validé")d.valideLe=todayISO();
+  try{const nid=await save("conges",id||null,d,!id);await afterConge({...d,id:nid});closeModal();toast("Demande enregistrée")}catch(e){}}
+async function afterConge(c){if(c.statut==="Validé"&&(S.params.nonPayes||[]).includes(c.type)){await creerTaches([{titre:`Retenue sur salaire : ${c.type.toLowerCase()} de ${nomId(c.empId)} du ${fd(c.debut)} au ${fd(c.fin)} (${c.jours} j)`,service:"Paie / DAF",empId:c.empId,evenement:"Absence",echeance:addDays(todayISO(),5)}])}}
+async function congeStatut(id,st){const c=S.conges.find(x=>x.id===id);try{await save("conges",id,{statut:st,valideLe:todayISO()});if(st==="Validé")await afterConge({...c,statut:st});toast("Demande "+st.toLowerCase())}catch(e){}}
+
+/* ---------- PAIE ---------- */
+let paieMois=curMonth();const draft={};
+function dv(empId,f,p){const d=draft[paieMois+"_"+empId];return d&&f in d?d[f]:(p[f]??"")}
+function calcPaie(e,p){p=p||{};const base=+e.salaireBase||0,jnp=p.joursNonPayes!==undefined&&p.joursNonPayes!==""?+p.joursNonPayes:joursNonPayes(e.id,p.mois||paieMois);
+  const ret=Math.round(base/30*jnp);const brut=base-ret+(+p.primes||0)+(+p.montantHS||0);return {base,jnp,ret,brut,netAvant:brut-(+p.avances||0)-(+p.autresRetenues||0)}}
+function paieRows(){const d0=paieMois+"-01",dEnd=monthEnd(paieMois);
+  return S.employes.filter(e=>(e.dateEmbauche||"")<=dEnd&&(e.actif!==false||(e.dateSortie||"")>=d0)).sort((a,b)=>(a.entite+nomE(a)).localeCompare(b.entite+nomE(b))).map(e=>{const p=S.paie.find(x=>x.id===paieMois+"_"+e.id)||{mois:paieMois};return {e,p,c:calcPaie(e,p),entree:(e.dateEmbauche||"")>=d0?e.dateEmbauche:"",sortie:e.actif===false?e.dateSortie:""}})}
+R.paie=()=>{const rows=paieRows(),tot=rows.reduce((s,r)=>s+r.c.brut,0),st=rows.length&&rows.every(r=>(r.p.statut||"Brouillon")!=="Brouillon")?rows[0].p.statut:"Brouillon";
+  return head("Variables de paie","Préparées par le RH, transmises à la DAF. Le RH ne calcule pas les cotisations ni l'impôt : la DAF établit les bulletins.",`<input type="month" id="pm" value="${paieMois}" aria-label="Mois de paie"><button class="btn" data-act="export-paie">Exporter Excel</button>${role()==="daf"?`<button class="btn acc" data-act="valider-daf">Valider la paie du mois (DAF)</button>`:`<button class="btn acc" data-act="transmettre" ${dis()}>Transmettre à la DAF</button>`}`)+
+  `<div class="grid g4" style="margin-bottom:14px"><div class="card kpi stripe-brand"><div class="v">${rows.length}</div><div class="l">Salariés à payer · ${fmtMonth(paieMois)}</div></div><div class="card kpi"><div class="v">${num(rows.reduce((s,r)=>s+r.c.jnp,0))}</div><div class="l">Jours d'absence non payés</div></div><div class="card kpi"><div class="v" style="font-size:24px">${money(tot)}</div><div class="l">Masse brute indicative</div></div><div class="card kpi"><div class="v" style="font-size:22px">${pillStat(st)}</div><div class="l">Statut du mois</div></div></div>
+  <div class="tbl-wrap"><table><tr><th>Matricule</th><th>Salarié</th><th>Mouvement</th><th class="num">Salaire de base</th><th class="num">Jours non payés</th><th class="num">Retenue absence</th><th class="num">Primes</th><th class="num">Heures sup. (FCFA)</th><th class="num">Avances</th><th class="num">Autres retenues</th><th class="num">Brut indicatif</th><th>Statut</th><th></th></tr>
+  ${rows.map(({e,p,c,entree,sortie})=>`<tr data-prow="${e.id}"><td>${esc(e.matricule)}</td><td><b>${esc(nomE(e))}</b><div class="muted small">${esc(e.entite)} · ${esc(e.poste||"")}</div></td><td class="small">${entree?`<span class="pill p-b">Entrée ${fd(entree)}</span>`:""}${sortie?`<span class="pill p-warn">Sortie ${fd(sortie)}</span>`:""}</td><td class="num">${num(c.base)}</td>
+   <td><input type="number" step="0.5" min="0" data-f="joursNonPayes" value="${esc(dv(e.id,"joursNonPayes",p))}" placeholder="${joursNonPayes(e.id,paieMois)}" ${dis()} aria-label="Jours non payés"></td><td class="num">${num(c.ret)}</td>
+   <td><input type="number" min="0" data-f="primes" value="${esc(dv(e.id,"primes",p))}" ${dis()} aria-label="Primes"></td><td><input type="number" min="0" data-f="montantHS" value="${esc(dv(e.id,"montantHS",p))}" ${dis()} aria-label="Heures supplémentaires"></td><td><input type="number" min="0" data-f="avances" value="${esc(dv(e.id,"avances",p))}" ${dis()} aria-label="Avances"></td><td><input type="number" min="0" data-f="autresRetenues" value="${esc(dv(e.id,"autresRetenues",p))}" ${dis()} aria-label="Autres retenues"></td>
+   <td class="num"><b>${num(c.brut)}</b></td><td>${pillStat(p.statut||"Brouillon")}</td><td><button class="btn sm" data-act="save-paie" data-e="${e.id}" ${dis()}>Enregistrer</button></td></tr>`).join("")||`<tr><td colspan="13"><div class="empty">Aucun salarié pour ce mois.</div></td></tr>`}</table></div>
+  <p class="muted small" style="margin-top:8px">Jours non payés : proposés automatiquement à partir des absences validées (en gris) ; saisissez une valeur pour la remplacer. Retenue = salaire de base ÷ 30 × jours. Brut indicatif = base − retenue + primes + heures sup.</p>`};
+A.paie=()=>{document.querySelectorAll("[data-prow] [data-f]").forEach(i=>i.addEventListener("input",()=>{const k=paieMois+"_"+i.closest("[data-prow]").dataset.prow;(draft[k]=draft[k]||{})[i.dataset.f]=i.value}));$("#pm").onchange=e=>{if(e.target.value){paieMois=e.target.value;render()}}};
+async function savePaie(empId){const tr=$(`[data-prow="${empId}"]`),d={mois:paieMois,empId};tr.querySelectorAll("[data-f]").forEach(i=>d[i.dataset.f]=i.value===""?"":+i.value);
+  const id=paieMois+"_"+empId,ex=S.paie.find(x=>x.id===id);d.statut=ex&&ex.statut&&ex.statut!=="Brouillon"?ex.statut:"Brouillon";
+  try{document.activeElement.blur();await save("paie",id,d,!ex);delete draft[id];render();toast("Variables de "+nomId(empId)+" enregistrées")}catch(e){}}
+async function validerDaf(){const L=S.paie.filter(p=>p.mois===paieMois&&p.statut==="Transmis à la DAF");if(!L.length){toast("Aucune variable transmise par le RH pour "+fmtMonth(paieMois)+".");return}
+  for(const p of L){try{await save("paie",p.id,{statut:"Validé DAF",valideDafLe:todayISO()})}catch(e){return}}
+  await creerTaches([{titre:`Paie de ${fmtMonth(paieMois)} validée par la DAF (${L.length} salariés) : classer les justificatifs`,service:"RH",evenement:"Paie mensuelle",echeance:addDays(todayISO(),3)}]);toast("Paie de "+fmtMonth(paieMois)+" validée")}
+async function transmettre(){const rows=paieRows();if(!rows.length)return;
+  for(const r of rows){const id=paieMois+"_"+r.e.id,ex=S.paie.find(x=>x.id===id);const d={mois:paieMois,empId:r.e.id,statut:"Transmis à la DAF",transmisLe:todayISO()};try{await save("paie",id,ex?d:{...d,primes:"",montantHS:"",avances:"",autresRetenues:""},!ex)}catch(e){return}}
+  await creerTaches([{titre:`Établir les bulletins de paie de ${fmtMonth(paieMois)} à partir des variables transmises par le RH (${rows.length} salariés)`,service:"Paie / DAF",evenement:"Paie mensuelle",echeance:addDays(todayISO(),5)}]);
+  toast("Variables de "+fmtMonth(paieMois)+" transmises à la DAF");}
+
+/* ---------- HSE ---------- */
+let hseTab="visite";
+function hseTable(L,showEmp){return `<div class="tbl-wrap"><table><tr>${showEmp?"<th>Salarié</th>":""}<th>Type</th><th>Libellé</th><th>Date</th><th>Échéance / suite</th><th>Résultat</th><th></th></tr>${L.map(h=>{const late=h.echeance&&h.echeance<todayISO();return `<tr>${showEmp?`<td><a href="#" data-open="${h.empId}">${esc(nomId(h.empId))}</a></td>`:""}<td><span class="pill p-b">${esc(HSE_TYPES[h.type]||h.type)}</span></td><td>${esc(h.libelle)}</td><td>${fd(h.date)}</td><td>${h.echeance?`<span class="pill ${late?"p-bad":"p-n"}">${fd(h.echeance)}</span>`:""}</td><td class="small">${esc(h.resultat||"")}${h.joursArret?" · "+h.joursArret+" j d'arrêt":""}</td><td><button class="btn sm" data-act="edit-hse" data-id="${h.id}" ${dis()}>Modifier</button></td></tr>`}).join("")||`<tr><td colspan="7"><div class="empty">Aucun enregistrement.</div></td></tr>`}</table></div>`}
+R.hse=()=>{const al=hseAlertes(),L=S.hse.filter(h=>h.type===hseTab).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const acc=S.hse.filter(h=>h.type==="accident"&&(h.date||"").startsWith(todayISO().slice(0,4)));
+  return head("HSE · Hygiène, santé et sécurité","Visites médicales, formations, EPI et accidents, reliés au dossier de chaque salarié.",`<button class="btn" data-act="export-hse">Exporter Excel</button><button class="btn pri" data-act="new-hse" data-t="${hseTab}" ${dis()}>+ ${esc(HSE_TYPES[hseTab])}</button>`)+
+  `<div class="grid g4" style="margin-bottom:14px"><div class="card kpi ${al.some(a=>a.niv==="bad")?"stripe-bad":"stripe-ok"}"><div class="v">${al.filter(a=>a.niv==="bad").length}</div><div class="l">Visites ou recyclages échus</div></div><div class="card kpi stripe-warn"><div class="v">${al.filter(a=>a.niv==="warn").length}</div><div class="l">À programmer dans ${S.params.alerteVisiteJours} jours / sans visite</div></div><div class="card kpi"><div class="v">${acc.length}</div><div class="l">Accidents ${todayISO().slice(0,4)}</div></div><div class="card kpi"><div class="v">${acc.reduce((s,a)=>s+(+a.joursArret||0),0)}</div><div class="l">Jours d'arrêt ${todayISO().slice(0,4)}</div></div></div>
+  ${al.length?`<div class="card" style="margin-bottom:14px"><h2>Alertes</h2>${al.slice(0,12).map(a=>`<div class="alert"><span class="dot d-${a.niv}"></span><div><a href="#" data-open="${a.empId}"><b>${esc(nomId(a.empId))}</b></a> · ${esc(a.txt)}</div></div>`).join("")}${al.length>12?`<div class="muted small">+ ${al.length-12} autres</div>`:""}</div>`:""}
+  <div class="tabs">${Object.entries(HSE_TYPES).map(([k,l])=>`<button data-htab="${k}" class="${k===hseTab?"on":""}">${esc(l)}</button>`).join("")}</div>${hseTable(L,true)}`};
+A.hse=()=>{document.querySelectorAll("[data-htab]").forEach(b=>b.onclick=()=>{hseTab=b.dataset.htab;render()})};
+function hseForm(h,type,empId){h=h||{};type=h.type||type||"visite";const isNew=!h.id;
+  const lib=type==="visite"?`<select name="libelle">${opts(VISITES,h.libelle)}</select>`:`<input name="libelle" required value="${esc(h.libelle||"")}" placeholder="${type==="formation"?"Ex. Bonnes pratiques d'hygiène, sécurité incendie":type==="epi"?"Ex. Chaussures de sécurité, gants, charlotte":"Ex. Coupure à la main, ligne de conditionnement"}">`;
+  const res=type==="visite"?`<label>Résultat<select name="resultat">${opts(["Apte","Apte avec réserves","Inapte","En attente"],h.resultat)}</select></label>`:type==="accident"?`<label>Gravité<select name="resultat">${opts(["Sans arrêt","Avec arrêt","Grave","Presque-accident"],h.resultat)}</select></label><label>Jours d'arrêt<input type="number" min="0" name="joursArret" value="${esc(h.joursArret||"")}"></label>`:type==="epi"?`<label>Quantité / taille<input name="resultat" value="${esc(h.resultat||"")}"></label>`:`<label>Organisme / formateur<input name="resultat" value="${esc(h.resultat||"")}"></label>`;
+  const ech=type==="accident"?"Date de reprise prévue":type==="epi"?"Date de renouvellement":type==="visite"?"Prochaine visite":"Recyclage prévu le";
+  openModal(`<div class="mhead"><h2>${esc(HSE_TYPES[type])}</h2><button class="btn sm" data-act="close">Fermer</button></div>
+  <form class="form" id="frm" data-type="${type}"><label class="full">Salarié *<select name="empId" required>${empOptions(h.empId||empId)}</select></label><label>${type==="visite"?"Type de visite":"Libellé"} *${lib}</label>
+  <label>Date *<input type="date" name="date" required value="${esc(h.date||todayISO())}"></label><label>${ech}<input type="date" name="echeance" value="${esc(h.echeance||(type==="visite"&&isNew?addDays(todayISO(),365):""))}"></label>${res}<label class="full">Observations${type==="accident"?" (circonstances, mesures correctives)":""}<textarea name="obs">${esc(h.obs||"")}</textarea></label></form>
+  ${type==="accident"&&isNew?`<p class="muted small">À l'enregistrement, une tâche est envoyée au RH pour la déclaration de l'accident et une autre au HSE pour l'analyse des causes.</p>`:""}${type==="epi"&&isNew?`<p class="muted small">La dotation est aussi ajoutée au module Matériel comme matériel remis au salarié.</p>`:""}
+  <div class="mfoot">${!isNew?`<button class="btn dan" data-act="del-hse" data-id="${h.id}">Supprimer</button>`:""}<button class="btn" data-act="close">Annuler</button><button class="btn pri" data-act="save-hse" data-id="${h.id||""}">Enregistrer</button></div>`)}
+async function saveHse(id){if(!checkForm())return;const f=$("#frm"),type=f.dataset.type;const d={type,empId:f.empId.value,libelle:f.libelle.value.trim(),date:f.date.value,echeance:f.echeance.value,resultat:f.resultat?f.resultat.value:"",obs:f.obs.value.trim()};if(f.joursArret)d.joursArret=f.joursArret.value===""?"":+f.joursArret.value;
+  try{await save("hse",id||null,d,!id);
+    if(!id&&type==="accident")await creerTaches([{titre:`Déclarer l'accident du travail de ${nomId(d.empId)} du ${fd(d.date)} et suivre le dossier`,service:"RH",empId:d.empId,evenement:"Accident",echeance:addDays(todayISO(),2)},{titre:`Analyser les causes de l'accident de ${nomId(d.empId)} et définir les mesures correctives`,service:"HSE",empId:d.empId,evenement:"Accident",echeance:addDays(todayISO(),7)}]);
+    if(!id&&type==="epi")await save("materiel",null,{code:"EPI-"+Date.now().toString(36).toUpperCase().slice(-5),designation:d.libelle,categorie:"EPI",gestionnaire:"Magasin",etat:"Neuf",empId:d.empId,dateAffectation:d.date,historique:[{empId:d.empId,du:d.date}]},true);
+    if(!id&&type==="visite"&&d.resultat==="Inapte")await creerTaches([{titre:`${nomId(d.empId)} déclaré inapte : étudier l'aménagement ou le changement de poste`,service:"RH",empId:d.empId,evenement:"Visite médicale",echeance:addDays(todayISO(),7)}]);
+    closeModal();toast("Enregistré")}catch(e){}}
+
+/* ---------- MATÉRIEL ---------- */
+let fM={cat:"",g:"",aff:""};
+function matTable(L){return `<div class="tbl-wrap"><table><tr><th>Code</th><th>Désignation</th><th>Catégorie</th><th>Géré par</th><th>N° de série</th><th>État</th><th>Remis à</th><th>Depuis</th><th></th></tr>${L.map(m=>{const e=emp(m.empId),bad=e&&e.actif===false;return `<tr><td>${esc(m.code)}</td><td><b>${esc(m.designation)}</b></td><td>${esc(m.categorie)}</td><td>${esc(m.gestionnaire)}</td><td class="small">${esc(m.serie||"")}</td><td>${esc(m.etat)}</td><td>${e?`<a href="#" data-open="${e.id}">${esc(nomE(e))}</a>${bad?' <span class="pill p-bad">sorti</span>':""}`:'<span class="pill p-ok">En stock</span>'}</td><td>${fd(m.dateAffectation)}</td>
+ <td><div class="row nw">${m.empId?`<button class="btn sm" data-act="restituer" data-id="${m.id}" ${dis()}>Restitution</button>`:`<button class="btn sm acc" data-act="affecter" data-id="${m.id}" ${dis()}>Remettre</button>`}<button class="btn sm" data-act="edit-mat" data-id="${m.id}" ${dis()}>Modifier</button></div></td></tr>`}).join("")||`<tr><td colspan="9"><div class="empty">Aucun matériel.</div></td></tr>`}</table></div>`}
+R.materiel=()=>{const L=S.materiel.filter(m=>(!fM.cat||m.categorie===fM.cat)&&(!fM.g||m.gestionnaire===fM.g)&&(!fM.aff||(fM.aff==="stock"?!m.empId:!!m.empId))).sort((a,b)=>(a.code||"").localeCompare(b.code||""));const nr=matNonRestitue();
+  return head("Administration du matériel","Magasin (EPI, tenues, outillage) et service informatique : qui détient quoi, depuis quand.",`<button class="btn" data-act="export-mat">Exporter Excel</button><button class="btn pri" data-act="new-mat" ${dis()}>+ Ajouter du matériel</button>`)+
+  `<div class="grid g4" style="margin-bottom:14px"><div class="card kpi stripe-brand"><div class="v">${S.materiel.length}</div><div class="l">Articles suivis</div></div><div class="card kpi"><div class="v">${S.materiel.filter(m=>m.empId).length}</div><div class="l">Remis au personnel</div></div><div class="card kpi"><div class="v">${S.materiel.filter(m=>!m.empId).length}</div><div class="l">En stock</div></div><div class="card kpi ${nr.length?"stripe-bad":"stripe-ok"}"><div class="v">${nr.length}</div><div class="l">Non restitués après départ</div></div></div>
+  <div class="row" style="margin-bottom:12px"><select id="mcat" aria-label="Catégorie"><option value="">Toutes catégories</option>${opts(MAT_CATS,fM.cat)}</select><select id="mg" aria-label="Géré par"><option value="">Magasin et Informatique</option>${opts(["Magasin","Informatique"],fM.g)}</select><select id="maff" aria-label="Situation"><option value="">Tous</option><option value="aff" ${fM.aff==="aff"?"selected":""}>Remis</option><option value="stock" ${fM.aff==="stock"?"selected":""}>En stock</option></select></div>`+matTable(L)};
+A.materiel=()=>{$("#mcat").onchange=e=>{fM.cat=e.target.value;render()};$("#mg").onchange=e=>{fM.g=e.target.value;render()};$("#maff").onchange=e=>{fM.aff=e.target.value;render()}};
+function matForm(m){m=m||{};const isNew=!m.id;openModal(`<div class="mhead"><h2>${isNew?"Ajouter du matériel":"Modifier le matériel"}</h2><button class="btn sm" data-act="close">Fermer</button></div>
+ <form class="form" id="frm"><label>Code / n° d'inventaire *<input name="code" required value="${esc(m.code||"")}"></label><label>Désignation *<input name="designation" required value="${esc(m.designation||"")}"></label>
+ <label>Catégorie<select name="categorie">${opts(MAT_CATS,m.categorie)}</select></label><label>Géré par<select name="gestionnaire">${opts(["Magasin","Informatique"],m.gestionnaire)}</select></label><label>N° de série<input name="serie" value="${esc(m.serie||"")}"></label><label>État<select name="etat">${opts(MAT_ETATS,m.etat||"Neuf")}</select></label>
+ <label>Valeur (FCFA)<input type="number" name="valeur" value="${esc(m.valeur||"")}"></label><label>Date d'acquisition<input type="date" name="dateAcq" value="${esc(m.dateAcq||"")}"></label></form>
+ ${!isNew&&(m.historique||[]).length?`<div class="fsec" style="margin-top:12px">Historique des remises</div><div class="tbl-wrap"><table><tr><th>Salarié</th><th>Remis le</th><th>Restitué le</th><th>État au retour</th></tr>${m.historique.map(h=>`<tr><td>${esc(nomId(h.empId))}</td><td>${fd(h.du)}</td><td>${fd(h.au)||"—"}</td><td>${esc(h.etat||"")}</td></tr>`).join("")}</table></div>`:""}
+ <div class="mfoot">${!isNew?`<button class="btn dan" data-act="del-mat" data-id="${m.id}">Supprimer</button>`:""}<button class="btn" data-act="close">Annuler</button><button class="btn pri" data-act="save-mat" data-id="${m.id||""}">Enregistrer</button></div>`)}
+async function saveMat(id){if(!checkForm())return;const f=$("#frm"),d={};["code","designation","categorie","gestionnaire","serie","etat","dateAcq"].forEach(k=>d[k]=f[k].value.trim());d.valeur=f.valeur.value===""?"":+f.valeur.value;if(!id){d.empId="";d.historique=[]}
+  try{await save("materiel",id||null,d,!id);closeModal();toast("Matériel enregistré")}catch(e){}}
+function affecterForm(id){const m=S.materiel.find(x=>x.id===id);openModal(`<div class="mhead"><h2>Remettre : ${esc(m.designation)}</h2><button class="btn sm" data-act="close">Fermer</button></div><form class="form" id="frm"><label class="full">Salarié *<select name="empId" required>${empOptions("")}</select></label><label>Date de remise *<input type="date" name="date" required value="${todayISO()}"></label></form><div class="mfoot"><button class="btn" data-act="close">Annuler</button><button class="btn pri" data-act="save-affect" data-id="${id}">Enregistrer la remise</button></div>`)}
+async function saveAffect(id){if(!checkForm())return;const f=$("#frm"),m=S.materiel.find(x=>x.id===id);const h=[...(m.historique||[]),{empId:f.empId.value,du:f.date.value}];
+  try{await save("materiel",id,{empId:f.empId.value,dateAffectation:f.date.value,historique:h});await logJournal(f.empId.value,[{champ:"Matériel remis",ancien:"",nouveau:m.designation+" ("+m.code+")"}],"Matériel");closeModal();toast("Remise enregistrée")}catch(e){}}
+function restituerForm(id){const m=S.materiel.find(x=>x.id===id);openModal(`<div class="mhead"><h2>Restitution : ${esc(m.designation)}</h2><button class="btn sm" data-act="close">Fermer</button></div><p>Rendu par <b>${esc(nomId(m.empId))}</b></p><form class="form" id="frm"><label>Date de restitution *<input type="date" name="date" required value="${todayISO()}"></label><label>État au retour<select name="etat">${opts(MAT_ETATS,m.etat)}</select></label></form><div class="mfoot"><button class="btn" data-act="close">Annuler</button><button class="btn pri" data-act="save-restit" data-id="${id}">Enregistrer la restitution</button></div>`)}
+async function saveRestit(id){const f=$("#frm"),m=S.materiel.find(x=>x.id===id),h=(m.historique||[]).map(x=>({...x}));const last=h.slice().reverse().find(x=>x.empId===m.empId&&!x.au);if(last){last.au=f.date.value;last.etat=f.etat.value}else h.push({empId:m.empId,du:m.dateAffectation||"",au:f.date.value,etat:f.etat.value});
+  try{const who=m.empId;await save("materiel",id,{empId:"",dateAffectation:"",etat:f.etat.value,historique:h});await logJournal(who,[{champ:"Matériel restitué",ancien:m.designation,nouveau:"Rendu le "+fd(f.date.value)+" ("+f.etat.value+")"}],"Matériel");closeModal();toast("Restitution enregistrée")}catch(e){}}
+
+/* ---------- TÂCHES ---------- */
+let fT={svc:"",st:"ouvertes"};
+R.taches=()=>{const t=todayISO();const L=S.taches.filter(x=>(!fT.svc||x.service===fT.svc)&&(fT.st==="toutes"||(fT.st==="ouvertes"?x.statut!=="Fait":x.statut==="Fait"))).sort((a,b)=>(a.statut==="Fait")-(b.statut==="Fait")||(a.echeance||"9").localeCompare(b.echeance||"9"));
+  return head("Tâches inter-services","Créées automatiquement par les embauches, départs, mutations, absences, accidents et la paie. Chaque service traite les siennes.",`<button class="btn" data-act="export-taches">Exporter Excel</button><button class="btn pri" data-act="new-tache">+ Nouvelle tâche</button>`)+
+  `<div class="svc" style="margin-bottom:14px">${SERVICES_TACHES.map(s=>{const o=S.taches.filter(x=>x.service===s&&x.statut!=="Fait");return `<div class="card" style="cursor:pointer;${fT.svc===s?"outline:2px solid var(--accent)":""}" data-tsvc="${esc(s)}"><div class="muted small">${esc(s)}</div><b>${o.length}</b> <span class="small" style="color:var(--bad)">${o.filter(x=>x.echeance&&x.echeance<t).length||""}${o.filter(x=>x.echeance&&x.echeance<t).length?" en retard":""}</span></div>`}).join("")}</div>
+  <div class="row" style="margin-bottom:12px"><select id="tsvc" aria-label="Service"><option value="">Tous les services</option>${opts(SERVICES_TACHES,fT.svc)}</select><select id="tst" aria-label="Statut"><option value="ouvertes" ${fT.st==="ouvertes"?"selected":""}>À faire et en cours</option><option value="faites" ${fT.st==="faites"?"selected":""}>Terminées</option><option value="toutes" ${fT.st==="toutes"?"selected":""}>Toutes</option></select></div>
+  <div class="tbl-wrap"><table><tr><th>Service</th><th>Tâche</th><th>Origine</th><th>Échéance</th><th>Statut</th><th></th></tr>${L.map(x=>{const late=x.statut!=="Fait"&&x.echeance&&x.echeance<t;return `<tr><td><span class="pill p-b">${esc(x.service)}</span></td><td>${esc(x.titre)}${x.empId?`<div class="small"><a href="#" data-open="${x.empId}">${esc(nomId(x.empId))}</a></div>`:""}</td><td class="small muted">${esc(x.evenement||"Manuelle")} · ${fd(x.creeLe)}</td><td>${x.echeance?`<span class="pill ${late?"p-bad":"p-n"}">${fd(x.echeance)}${late?" · en retard":""}</span>`:""}</td><td>${pillStat(x.statut)}${x.faitLe?`<div class="small muted">le ${fd(x.faitLe)}</div>`:""}</td>
+  <td><div class="row nw">${x.statut==="À faire"?`<button class="btn sm" data-act="tache-st" data-id="${x.id}" data-s="En cours" ${disT(x)}>Commencer</button>`:""}${x.statut!=="Fait"?`<button class="btn sm acc" data-act="tache-st" data-id="${x.id}" data-s="Fait" ${disT(x)}>Fait</button>`:`<button class="btn sm" data-act="tache-st" data-id="${x.id}" data-s="À faire" ${disT(x)}>Rouvrir</button>`}${S.canWrite?`<button class="btn sm" data-act="del-tache" data-id="${x.id}" aria-label="Supprimer la tâche">✕</button>`:""}</div></td></tr>`}).join("")||`<tr><td colspan="6"><div class="empty">Aucune tâche.</div></td></tr>`}</table></div>`};
+A.taches=()=>{$("#tsvc").onchange=e=>{fT.svc=e.target.value;render()};$("#tst").onchange=e=>{fT.st=e.target.value;render()};document.querySelectorAll("[data-tsvc]").forEach(c=>c.onclick=()=>{fT.svc=fT.svc===c.dataset.tsvc?"":c.dataset.tsvc;render()})};
+function tacheForm(){openModal(`<div class="mhead"><h2>Nouvelle tâche</h2><button class="btn sm" data-act="close">Fermer</button></div><form class="form" id="frm"><label class="full">Tâche *<input name="titre" required></label><label>Service destinataire *<select name="service" required>${opts(SERVICES_TACHES)}</select></label><label>Échéance<input type="date" name="echeance" value="${addDays(todayISO(),7)}"></label><label class="full">Salarié concerné<select name="empId">${empOptions("")}</select></label></form><div class="mfoot"><button class="btn" data-act="close">Annuler</button><button class="btn pri" data-act="save-tache">Envoyer</button></div>`)}
+
+/* ---------- RAPPORTS ---------- */
+let rMois=curMonth();
+function indicateurs(mois){const d0=mois+"-01",dEnd=monthEnd(mois);
+  const act=actifs(),inc=act.filter(e=>!complet(e)),dem=S.employes.filter(e=>e.regul&&e.regul.dateDemande),reg=dem.filter(e=>e.regul.statut==="Régularisé"||complet(e));
+  const maj=S.journal.filter(j=>j.date>=d0&&j.date<=dEnd);const majEmp=new Set(maj.map(j=>j.empId)).size;
+  const incid=S.incidents.filter(i=>i.date>=d0&&i.date<=dEnd);
+  const entrees=S.employes.filter(e=>e.dateEmbauche>=d0&&e.dateEmbauche<=dEnd),sorties=S.employes.filter(e=>e.actif===false&&e.dateSortie>=d0&&e.dateSortie<=dEnd);
+  const absJ=S.conges.filter(c=>c.statut==="Validé"&&c.type!=="Congé annuel"&&c.type!=="Mission"&&c.debut<=dEnd&&c.fin>=d0).reduce((s,c)=>{const a=c.debut>d0?c.debut:d0,b=c.fin<dEnd?c.fin:dEnd;return s+diffDays(a,b)+1},0);
+  const acc=S.hse.filter(h=>h.type==="accident"&&h.date>=d0&&h.date<=dEnd);
+  return {act:act.length,taux:tauxCompletude(S.employes),inc:inc.length,majEmp,maj:maj.length,tauxReg:dem.length?Math.round(reg.length/dem.length*100):0,reg:reg.length,dem:dem.length,incid:incid.length,entrees,sorties,absJ,acc:acc.length,arret:acc.reduce((s,a)=>s+(+a.joursArret||0),0)}}
+R.rapports=()=>{const I=indicateurs(rMois),act=actifs();
+  const byEnt=ENTITES.map(n=>[n,act.filter(e=>e.entite===n).length]),byCat=S.params.categories.map(c=>[c,act.filter(e=>e.categorie===c).length]).filter(x=>x[1]),bySvc=S.params.services.map(s=>[s,act.filter(e=>e.service===s).length]).filter(x=>x[1]),max=Math.max(1,...bySvc.map(x=>x[1]));
+  const an=anomalies();
+  return head("Rapports pour la Direction générale","Indicateurs de performance de la procédure RH-01 (section 12) et contrôle périodique (section 11).",`<input type="month" id="rm" value="${rMois}" aria-label="Mois"><button class="btn acc" data-act="export-rapport">Télécharger le rapport Excel</button>`)+
+  `<div class="grid g4" style="margin-bottom:14px">
+   <div class="card kpi ${I.taux>=90?"stripe-ok":"stripe-warn"}"><div class="v">${String(I.taux).replace(".",",")} %</div><div class="l">Taux de dossiers administratifs complets</div><div class="bar"><i style="width:${I.taux}%"></i></div></div>
+   <div class="card kpi"><div class="v">${I.inc}</div><div class="l">Dossiers incomplets</div></div>
+   <div class="card kpi"><div class="v">${I.majEmp}</div><div class="l">Dossiers mis à jour en ${fmtMonth(rMois)} (${I.maj} actes)</div></div>
+   <div class="card kpi"><div class="v">${I.tauxReg} %</div><div class="l">Taux de régularisation (${I.reg}/${I.dem})</div></div>
+   <div class="card kpi ${I.incid?"stripe-bad":"stripe-ok"}"><div class="v">${I.incid}</div><div class="l">Incidents liés à la gestion documentaire</div></div></div>
+  <div class="card" style="margin-bottom:14px"><div class="small muted">Taux de complétude = (Nombre de dossiers complets / Nombre total de dossiers actifs) × 100 = (${act.filter(complet).length} / ${act.length}) × 100</div></div>
+  <div class="grid g2" style="margin-bottom:14px">
+   <div class="card"><h2>Effectif par service</h2>${bySvc.map(([s,n])=>`<div style="display:grid;grid-template-columns:170px 1fr 36px;gap:8px;align-items:center;margin:5px 0"><span class="small">${esc(s)}</span><div class="bar" style="margin:0;height:12px"><i style="width:${n/max*100}%;background:var(--brand)"></i></div><b class="small" style="text-align:right">${n}</b></div>`).join("")||'<div class="muted">Aucune donnée.</div>'}
+     <div class="row small muted" style="margin-top:10px">${byEnt.map(([n,v])=>`<span class="pill p-b">${n} : ${v}</span>`).join("")}${byCat.map(([n,v])=>`<span class="pill p-n">${esc(n)} : ${v}</span>`).join("")}</div></div>
+   <div class="card"><h2>Mouvements et absences · ${fmtMonth(rMois)}</h2><div class="kv"><div>Entrées</div><div><b>${I.entrees.length}</b> ${I.entrees.map(e=>esc(nomE(e))).join(", ")}</div><div>Sorties</div><div><b>${I.sorties.length}</b> ${I.sorties.map(e=>esc(nomE(e))+" ("+esc(e.motifSortie||"")+")").join(", ")}</div><div>Jours d'absence (hors congé annuel)</div><div><b>${I.absJ}</b></div><div>Accidents du travail</div><div><b>${I.acc}</b> · ${I.arret} jours d'arrêt</div><div>Tâches inter-services ouvertes</div><div><b>${S.taches.filter(t=>t.statut!=="Fait").length}</b></div></div></div></div>
+  <div class="card" style="margin-bottom:14px"><h2>Contrôle de la qualité des dossiers (${an.length} point(s) à corriger)</h2>${an.slice(0,20).map(a=>`<div class="alert"><span class="dot d-warn"></span><div><a href="#" data-open="${a.empId}"><b>${esc(nomId(a.empId))}</b></a> · ${esc(a.txt)}</div></div>`).join("")||'<div class="empty">Aucune anomalie détectée.</div>'}${an.length>20?`<div class="muted small">+ ${an.length-20} autres (voir le rapport Excel)</div>`:""}</div>
+  <div class="card"><div class="row" style="justify-content:space-between"><h2>Registre des incidents (confidentialité et sécurité des documents)</h2><button class="btn sm pri" data-act="new-incident" ${dis()}>+ Signaler un incident</button></div>
+   <div class="tbl-wrap"><table><tr><th>Date</th><th>Type</th><th>Description</th><th>Mesures prises</th><th>Statut</th><th></th></tr>${S.incidents.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(i=>`<tr><td>${fd(i.date)}</td><td>${esc(i.type)}</td><td class="small">${esc(i.description)}</td><td class="small">${esc(i.mesures)}</td><td>${pillStat(i.statut)}</td><td><button class="btn sm" data-act="edit-incident" data-id="${i.id}" ${dis()}>Modifier</button></td></tr>`).join("")||`<tr><td colspan="6"><div class="empty">Aucun incident signalé.</div></td></tr>`}</table></div></div>`};
+A.rapports=()=>{$("#rm").onchange=e=>{if(e.target.value){rMois=e.target.value;render()}}};
+function incidentForm(i){i=i||{};const isNew=!i.id;openModal(`<div class="mhead"><h2>${isNew?"Signaler un incident":"Incident"}</h2><button class="btn sm" data-act="close">Fermer</button></div><form class="form" id="frm"><label>Date *<input type="date" name="date" required value="${esc(i.date||todayISO())}"></label><label>Type *<select name="type">${opts(["Perte de document","Divulgation","Accès non autorisé","Détérioration","Autre"],i.type)}</select></label><label>Statut<select name="statut">${opts(["Ouvert","Clôturé"],i.statut||"Ouvert")}</select></label><label class="full">Description *<textarea name="description" required>${esc(i.description||"")}</textarea></label><label class="full">Mesures prises<textarea name="mesures">${esc(i.mesures||"")}</textarea></label></form>
+ ${isNew?'<p class="muted small">L\'incident est signalé à la hiérarchie : une tâche est envoyée à la Direction générale.</p>':""}<div class="mfoot"><button class="btn" data-act="close">Annuler</button><button class="btn pri" data-act="save-incident" data-id="${i.id||""}">Enregistrer</button></div>`)}
+
+/* ---------- PARAMÈTRES ---------- */
+R.parametres=()=>{const p=S.params;
+  return head("Paramètres","Listes et règles utilisées dans tout l'ERP.","")+
+  `<div class="grid g2"><div class="card"><h2>Règles</h2><form class="form" id="frm">
+   <label>Jours de congé acquis par mois<input type="number" step="0.5" name="congeParMois" value="${p.congeParMois}"></label>
+   <label>Alerte fin de contrat (jours avant)<input type="number" name="alerteContratJours" value="${p.alerteContratJours}"></label>
+   <label>Alerte visite médicale (jours avant)<input type="number" name="alerteVisiteJours" value="${p.alerteVisiteJours}"></label>
+   <label>Délai de régularisation des dossiers (jours)<input type="number" name="delaiRegulJours" value="${p.delaiRegulJours}"></label>
+   <label class="full">Services / départements (un par ligne)<textarea name="services" rows="8">${esc(p.services.join("\n"))}</textarea></label>
+   <label class="full">Catégories de personnel (une par ligne)<textarea name="categories">${esc(p.categories.join("\n"))}</textarea></label>
+   <label class="full">Types de congé et d'absence (un par ligne)<textarea name="typesConge">${esc(p.typesConge.join("\n"))}</textarea></label>
+   <label class="full">Types non payés, retenus sur salaire (un par ligne)<textarea name="nonPayes">${esc(p.nonPayes.join("\n"))}</textarea></label></form>
+   <div class="mfoot"><button class="btn pri" data-act="save-params" ${dis()}>Enregistrer les paramètres</button></div></div>
+   <div class="card"><h2>Importer la liste du personnel (Excel)</h2><p class="small">1. Téléchargez le modèle. 2. Remplissez une ligne par salarié (simple saisie, sans formule). 3. Importez le fichier : chaque salarié reçoit un matricule. Les salariés déjà présents (même nom, prénom et entité) ne sont pas dupliqués.</p>
+    <div class="row"><button class="btn" data-act="modele">Télécharger le modèle Excel</button><button class="btn pri" data-act="import" ${dis()}>Importer un fichier</button></div><div id="impres" class="small" style="margin-top:10px"></div>
+    <h2 style="margin-top:22px">Sauvegarde</h2><p class="small">Téléchargez toutes les données de l'ERP dans un classeur Excel (une feuille par module).</p><button class="btn" data-act="backup">Télécharger la sauvegarde complète</button>
+    <h2 style="margin-top:22px">Accès</h2><p class="small">Les comptes et les profils se gèrent dans le menu <a href="#utilisateurs">Utilisateurs</a>.</p></div></div>`};
+
+/* ================= EXPORTS EXCEL ================= */
+async function saveXlsx(name,sheets){
+  if(typeof XLSX==="undefined"){toast("Module Excel non chargé : vérifiez la connexion.");return}
+  const wb=XLSX.utils.book_new();sheets.forEach(([n,rows])=>{const ws=XLSX.utils.json_to_sheet(rows.length?rows:[{"":"Aucune donnée"}]);const keys=Object.keys(rows[0]||{"":1});ws["!cols"]=keys.map(k=>({wch:Math.min(50,Math.max(10,k.length+2,...rows.map(r=>String(r[k]??"").length+1)))}));XLSX.utils.book_append_sheet(wb,ws,n.slice(0,31))});
+  const buf=XLSX.write(wb,{type:"array",bookType:"xlsx"});
+  const url=URL.createObjectURL(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));const a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);toast("Fichier téléchargé : "+name)
+}
+const rowsPersonnel=list=>list.map(e=>({"Matricule":e.matricule,"Nom":e.nom,"Prénom":e.prenom,"Entité":e.entite,"Service":e.service,"Poste":e.poste,"Catégorie":e.categorie,"Statut":e.statutEmploi,"Contrat":e.typeContrat,"Date d'embauche":fd(e.dateEmbauche),"Fin de contrat":fd(e.dateFinContrat),"Téléphone":e.telephone,"Adresse":e.adresse,"Situation familiale":e.situationFamiliale,"Enfants":e.nbEnfants,"N° CNSS":e.numeroCNSS,"Salaire de base":e.salaireBase,"Dossier":complet(e)?"Complet":"Incomplet ("+manquantes(e).length+")","Situation":e.actif===false?"Sorti le "+fd(e.dateSortie):"Actif"}));
+const rowsIncomplets=()=>S.employes.filter(e=>!complet(e)).map(e=>({"Nom et prénom":nomE(e),"Entité":e.entite,"Service":e.service,"Pièces manquantes":manquantes(e).map(pieceLabel).join(" ; "),"Date de demande":fd(e.regul&&e.regul.dateDemande),"Délai":fd(e.regul&&e.regul.delai),"Relances":(e.regul&&e.regul.relances||[]).length,"Statut":(e.regul&&e.regul.statut)||"Non demandé"}));
+const rowsConges=()=>S.conges.map(c=>({"Salarié":nomId(c.empId),"Type":c.type,"Du":fd(c.debut),"Au":fd(c.fin),"Jours":c.jours,"Statut":c.statut,"Motif":c.motif}));
+const rowsHse=()=>S.hse.map(h=>({"Salarié":nomId(h.empId),"Type":HSE_TYPES[h.type],"Libellé":h.libelle,"Date":fd(h.date),"Échéance":fd(h.echeance),"Résultat":h.resultat,"Jours d'arrêt":h.joursArret||"","Observations":h.obs}));
+const rowsMat=()=>S.materiel.map(m=>({"Code":m.code,"Désignation":m.designation,"Catégorie":m.categorie,"Géré par":m.gestionnaire,"N° de série":m.serie,"État":m.etat,"Remis à":m.empId?nomId(m.empId):"En stock","Depuis":fd(m.dateAffectation),"Valeur":m.valeur}));
+const rowsTaches=()=>S.taches.map(t=>({"Service":t.service,"Tâche":t.titre,"Salarié":t.empId?nomId(t.empId):"","Origine":t.evenement,"Créée le":fd(t.creeLe),"Échéance":fd(t.echeance),"Statut":t.statut,"Faite le":fd(t.faitLe)}));
+const rowsPaie=()=>paieRows().map(({e,p,c,entree,sortie})=>({"Mois":fmtMonth(paieMois),"Matricule":e.matricule,"Nom et prénom":nomE(e),"Entité":e.entite,"Poste":e.poste,"Mouvement":(entree?"Entrée "+fd(entree):"")+(sortie?" Sortie "+fd(sortie):""),"Salaire de base":c.base,"Jours non payés":c.jnp,"Retenue absence":c.ret,"Primes":+p.primes||0,"Heures sup.":+p.montantHS||0,"Avances":+p.avances||0,"Autres retenues":+p.autresRetenues||0,"Brut indicatif":c.brut,"Mode de paiement":e.modePaiement,"N° CNSS":e.numeroCNSS,"Statut":p.statut||"Brouillon"}));
+function exportRapport(){const I=indicateurs(rMois);saveXlsx("Rapport_RH_DG_"+rMois+".xlsx",[
+ ["Indicateurs",[{"Indicateur":"Effectif actif","Valeur":I.act},{"Indicateur":"Taux de dossiers administratifs complets (%)","Valeur":I.taux},{"Indicateur":"Nombre de dossiers incomplets","Valeur":I.inc},{"Indicateur":"Nombre de dossiers mis à jour ("+fmtMonth(rMois)+")","Valeur":I.majEmp},{"Indicateur":"Taux de régularisation des dossiers incomplets (%)","Valeur":I.tauxReg},{"Indicateur":"Nombre d'incidents liés à la gestion documentaire","Valeur":I.incid},{"Indicateur":"Entrées du mois","Valeur":I.entrees.length},{"Indicateur":"Sorties du mois","Valeur":I.sorties.length},{"Indicateur":"Jours d'absence (hors congé annuel)","Valeur":I.absJ},{"Indicateur":"Accidents du travail","Valeur":I.acc},{"Indicateur":"Jours d'arrêt","Valeur":I.arret},{"Indicateur":"Tâches inter-services ouvertes","Valeur":S.taches.filter(t=>t.statut!=="Fait").length}]],
+ ["Effectif",rowsPersonnel(actifs())],["Dossiers incomplets",rowsIncomplets()],["Contrôle",anomalies().map(a=>({"Salarié":nomId(a.empId),"Point à corriger":a.txt}))],
+ ["Échéances contrats",actifs().filter(contratAlerte).map(e=>({"Salarié":nomE(e),"Contrat":e.typeContrat,"Fin":fd(e.dateFinContrat),"Alerte":contratAlerte(e).txt}))],["Alertes HSE",hseAlertes().map(a=>({"Salarié":nomId(a.empId),"Alerte":a.txt}))]])}
+function modele(){saveXlsx("Modele_import_personnel.xlsx",[["Personnel",[{"Nom":"ISSOUFOU","Prénom":"Exemple","Entité (SECOP ou FOOD)":"FOOD","Service":"Production","Poste":"Opérateur de production","Catégorie":"Agent d'exécution","Statut (Permanent ou Temporaire)":"Permanent","Contrat (CDI, CDD, Journalier, Stage)":"CDI","Date d'embauche (JJ/MM/AAAA)":"01/03/2024","Fin de contrat (JJ/MM/AAAA)":"","Téléphone":"","Adresse":"","Situation familiale":"","Nombre d'enfants":"","N° CNSS":"","Salaire de base":""}]]])}
+function parseDate(v){if(!v)return"";if(typeof v==="number"){const d=new Date(Math.round((v-25569)*864e5));return d.toISOString().slice(0,10)}const s=String(v).trim();let m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);if(m)return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[0]:""}
+async function importFile(file){const res=$("#impres");if(!file)return;res.textContent="Lecture du fichier…";
+  try{const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""});
+    const g=(r,k)=>{const key=Object.keys(r).find(x=>x.toLowerCase().startsWith(k.toLowerCase()));return key?r[key]:""};
+    let ok=0,skip=0,err=[];const seen=new Set(S.employes.map(e=>(e.nom+"|"+e.prenom+"|"+e.entite).toLowerCase()));
+    for(const [i,r] of rows.entries()){const nom=String(g(r,"Nom")).trim(),prenom=String(g(r,"Prénom")||g(r,"Prenom")).trim(),ent=String(g(r,"Entité")||g(r,"Entite")).trim().toUpperCase();
+      if(!nom){continue}if(!ENTITES.includes(ent)){err.push("Ligne "+(i+2)+" : entité « "+ent+" » inconnue");continue}
+      const key=(nom.toUpperCase()+"|"+prenom+"|"+ent).toLowerCase();if(seen.has(key)){skip++;continue}seen.add(key);
+      const d={nom:nom.toUpperCase(),prenom,entite:ent,service:String(g(r,"Service")).trim(),poste:String(g(r,"Poste")).trim(),categorie:String(g(r,"Catégorie")||g(r,"Categorie")).trim(),statutEmploi:String(g(r,"Statut")).trim()||"Permanent",typeContrat:String(g(r,"Contrat")).trim()||"CDI",dateEmbauche:parseDate(g(r,"Date d'embauche")),dateFinContrat:parseDate(g(r,"Fin de contrat")),telephone:String(g(r,"Téléphone")||g(r,"Telephone")).trim(),adresse:String(g(r,"Adresse")).trim(),situationFamiliale:String(g(r,"Situation")).trim(),nbEnfants:g(r,"Nombre d'enfants")===""?"":+g(r,"Nombre d'enfants"),numeroCNSS:String(g(r,"N° CNSS")).trim(),salaireBase:g(r,"Salaire")===""?"":+String(g(r,"Salaire")).replace(/\s/g,""),actif:true,pieces:{},regul:{statut:"Non demandé"}};
+      d.matricule=nouveauMatricule(ent);
+      try{const id=await save("employes",null,d,true);S.employes.push({...d,id});ok++;res.textContent="Import en cours : "+ok+" salarié(s)…"}catch(e){err.push("Ligne "+(i+2)+" : enregistrement refusé");break}}
+    res.innerHTML=`<b>${ok}</b> salarié(s) importé(s), ${skip} déjà présent(s).${err.length?"<br>"+err.map(esc).join("<br>"):""}`;
+  }catch(e){res.textContent="Fichier illisible. Utilisez le modèle Excel."}}
+
+/* ================= ACTIONS ================= */
+document.addEventListener("click",async ev=>{
+  const o=ev.target.closest("[data-open]");if(o){ev.preventDefault();empTab="infos";openEmp(o.dataset.open);return}
+  const tr=ev.target.closest("tr[data-emp]");if(tr&&!ev.target.closest("button,a,input")){empTab="infos";openEmp(tr.dataset.emp);return}
+  const b=ev.target.closest("[data-act]");if(!b)return;const a=b.dataset.act,id=b.dataset.id,me=$("#modal").dataset.emp;
+  if(b.tagName==="A"&&a==="close"){closeModal();return}
+  ev.preventDefault();
+  if(b.disabled)return;
+  const busy=fn=>async()=>{b.disabled=true;try{await fn()}finally{b.disabled=false}};
+  const M={
+    "close":closeModal,"new-emp":newEmp,"save-new-emp":busy(saveNewEmp),"save-emp":busy(()=>saveEmp(me)),"save-pieces":busy(()=>savePieces(me)),
+    "sortie":()=>sortieForm(me),"save-sortie":busy(()=>saveSortie(b.dataset.e)),"reintegrer":busy(async()=>{await save("employes",me,{actif:true,dateSortie:"",motifSortie:""});await logJournal(me,[{champ:"Réintégration",ancien:"Sorti",nouveau:"Actif"}],"Réintégration");openEmp(me)}),
+    "relance":busy(()=>relance(b.dataset.e)),
+    "new-conge":()=>congeForm(null,b.dataset.e),"edit-conge":()=>congeForm(S.conges.find(c=>c.id===id)),"save-conge":busy(()=>saveConge(id)),"del-conge":busy(async()=>{await del("conges",id);closeModal()}),
+    "conge-ok":busy(()=>congeStatut(id,"Validé")),"conge-ko":busy(()=>congeStatut(id,"Refusé")),
+    "save-paie":busy(()=>savePaie(b.dataset.e)),"transmettre":busy(transmettre),"valider-daf":busy(validerDaf),
+    "logout":()=>logout(),"change-pw":()=>showChangePw(false),"new-user":()=>userForm(),"edit-user":()=>userForm(USERS.find(u=>u.id===id)),"save-user":busy(()=>saveUser(id)),
+    "reset-pw":()=>resetPwForm(id),"save-reset":busy(()=>saveReset(id)),"user-statut":busy(async()=>{try{await api("users.set_statut",{id,statut:b.dataset.s});toast("Compte mis à jour");loadUsers()}catch(e){toast(e.message)}}),
+    "new-hse":()=>hseForm(null,b.dataset.t,b.dataset.e),"edit-hse":()=>hseForm(S.hse.find(h=>h.id===id)),"save-hse":busy(()=>saveHse(id)),"del-hse":busy(async()=>{await del("hse",id);closeModal()}),
+    "new-mat":()=>matForm(),"edit-mat":()=>matForm(S.materiel.find(m=>m.id===id)),"save-mat":busy(()=>saveMat(id)),"del-mat":busy(async()=>{await del("materiel",id);closeModal()}),
+    "affecter":()=>affecterForm(id),"save-affect":busy(()=>saveAffect(id)),"restituer":()=>restituerForm(id),"save-restit":busy(()=>saveRestit(id)),
+    "new-tache":tacheForm,"save-tache":busy(async()=>{if(!checkForm())return;const f=$("#frm");await creerTaches([{titre:f.titre.value.trim(),service:f.service.value,echeance:f.echeance.value,empId:f.empId.value,evenement:"Manuelle"}]);closeModal();toast("Tâche envoyée au service "+f.service.value)}),
+    "tache-st":busy(async()=>{await save("taches",id,{statut:b.dataset.s,faitLe:b.dataset.s==="Fait"?todayISO():""})}),"del-tache":busy(()=>del("taches",id)),
+    "new-incident":()=>incidentForm(),"edit-incident":()=>incidentForm(S.incidents.find(i=>i.id===id)),
+    "save-incident":busy(async()=>{if(!checkForm())return;const f=$("#frm"),d={date:f.date.value,type:f.type.value,statut:f.statut.value,description:f.description.value.trim(),mesures:f.mesures.value.trim()};await save("incidents",id||null,d,!id);if(!id)await creerTaches([{titre:"Incident documentaire signalé ("+d.type+") le "+fd(d.date)+" : prendre connaissance et valider les mesures",service:"Direction générale",evenement:"Incident",echeance:addDays(todayISO(),3)}]);closeModal();toast("Incident enregistré")}),
+    "save-params":busy(async()=>{const f=$("#frm"),L=k=>f[k].value.split("\n").map(s=>s.trim()).filter(Boolean);const d={congeParMois:+f.congeParMois.value||0,alerteContratJours:+f.alerteContratJours.value||30,alerteVisiteJours:+f.alerteVisiteJours.value||30,delaiRegulJours:+f.delaiRegulJours.value||15,services:L("services"),categories:L("categories"),typesConge:L("typesConge"),nonPayes:L("nonPayes")};await save("params","general",d,true);toast("Paramètres enregistrés")}),
+    "modele":modele,"import":()=>$("#fileIn").click(),
+    "backup":()=>saveXlsx("Sauvegarde_ERP_RH_"+todayISO()+".xlsx",[["Personnel",rowsPersonnel(S.employes)],["Dossiers incomplets",rowsIncomplets()],["Congés",rowsConges()],["Paie "+paieMois,rowsPaie()],["HSE",rowsHse()],["Matériel",rowsMat()],["Tâches",rowsTaches()],["Historique",S.journal.flatMap(j=>(j.changes||[]).map(c=>({"Date":fd(j.date),"Salarié":nomId(j.empId),"Motif":j.motif,"Élément":c.champ,"Ancien":c.ancien,"Nouveau":c.nouveau})))],["Incidents",S.incidents.map(i=>({"Date":fd(i.date),"Type":i.type,"Description":i.description,"Mesures":i.mesures,"Statut":i.statut}))]]),
+    "export-personnel":()=>saveXlsx("Registre_personnel_"+todayISO()+".xlsx",[["Registre du personnel",rowsPersonnel(S.employes)]]),
+    "export-incomplets":()=>saveXlsx("Dossiers_incomplets_"+todayISO()+".xlsx",[["Dossiers incomplets",rowsIncomplets()]]),
+    "export-conges":()=>saveXlsx("Conges_absences_"+todayISO()+".xlsx",[["Congés et absences",rowsConges()]]),
+    "export-paie":()=>saveXlsx("Variables_paie_"+paieMois+".xlsx",[["Variables de paie",rowsPaie()]]),
+    "export-hse":()=>saveXlsx("Suivi_HSE_"+todayISO()+".xlsx",[["HSE",rowsHse()],["Alertes",hseAlertes().map(a=>({"Salarié":nomId(a.empId),"Alerte":a.txt}))]]),
+    "export-mat":()=>saveXlsx("Materiel_"+todayISO()+".xlsx",[["Matériel",rowsMat()]]),
+    "export-taches":()=>saveXlsx("Taches_inter_services_"+todayISO()+".xlsx",[["Tâches",rowsTaches()]]),
+    "export-rapport":exportRapport,
+    "purge-demo":busy(async()=>{for(const c of COLS)for(const d of S[c].filter(x=>x.demo)){try{await del(c,d.id)}catch(e){return}}toast("Exemples supprimés : l'ERP est prêt pour vos données.")})
+  };
+  if(M[a])await M[a]();
+});
+$("#fileIn").addEventListener("change",e=>{importFile(e.target.files[0]);e.target.value=""});
+
+/* ================= ROUTAGE / INIT ================= */
+function route(){const h=location.hash.slice(1);view=visibleViews().some(v=>v[0]===h)?h:"tableau-de-bord";if($("#ov").classList.contains("open"))$("#ov").classList.remove("open");render();window.scrollTo(0,0)}
+window.addEventListener("hashchange",route);
+route();
+/* ================= CONNEXION ================= */
+function authScreen(html){$("#authbox").innerHTML=`<div class="authlogo"></div>`+html;$("#auth").classList.add("open");const f=$("#authbox").querySelector("input");f&&f.focus()}
+function showLogin(msg){authScreen(`<h1>ERP RH</h1><div class="sub" style="margin-bottom:16px">SECOP &amp; FOOD · Gestion administrative du personnel</div>
+  <form class="form" id="flogin"><label for="li">Identifiant<input id="li" autocomplete="username" required></label><label for="lp">Mot de passe<input id="lp" type="password" autocomplete="current-password" required></label>
+  <button class="btn pri" type="submit">Se connecter</button></form><div class="err" id="lerr">${esc(msg||"")}</div><p class="muted small">Mot de passe oublié : demandez une réinitialisation au Responsable RH.</p>`);
+  $("#flogin").onsubmit=async e=>{e.preventDefault();$("#lerr").textContent="";const bt=e.target.querySelector("button");bt.disabled=true;
+    try{const r=await api("auth.login",{identifiant:$("#li").value,password:$("#lp").value});await startSession(r)}catch(x){$("#lerr").textContent=x.message}finally{bt.disabled=false}}}
+function showSetup(){authScreen(`<h1>Première mise en service</h1><div class="sub" style="margin-bottom:14px">Aucun compte n'existe encore. Créez le compte du <b>Responsable RH</b> : il créera ensuite les comptes des assistants RH, de la DAF et de la DG.</div>
+  <form class="form" id="fsetup"><label>Nom *<input name="nom" required></label><label>Prénom<input name="prenom"></label><label>Identifiant de connexion *<input name="username" required placeholder="ex. resp.rh" autocomplete="username"></label><label>Mot de passe * (8 caractères min., lettres et chiffres)<input name="password" type="password" required autocomplete="new-password"></label><label>Confirmer le mot de passe *<input name="password2" type="password" required autocomplete="new-password"></label>
+  <button class="btn pri" type="submit">Créer le compte et entrer</button></form><div class="err" id="lerr"></div>`);
+  $("#fsetup").onsubmit=async e=>{e.preventDefault();const f=e.target;if(f.password.value!==f.password2.value){$("#lerr").textContent="Les deux mots de passe sont différents.";return}
+    try{const r=await api("setup.first",{user:{nom:f.nom.value,prenom:f.prenom.value,username:f.username.value,password:f.password.value}});await startSession(r)}catch(x){$("#lerr").textContent=x.message}}}
+function showChangePw(force){authScreen(`<h1>${force?"Choisissez votre mot de passe":"Changer mon mot de passe"}</h1><div class="sub" style="margin-bottom:14px">${force?"Votre compte a un mot de passe provisoire. Choisissez-en un personnel pour continuer.":"8 caractères minimum, avec des lettres et des chiffres."}</div>
+  <form class="form" id="fpw"><label>Mot de passe actuel<input name="ancien" type="password" required autocomplete="current-password"></label><label>Nouveau mot de passe<input name="nouveau" type="password" required autocomplete="new-password"></label><label>Confirmer<input name="n2" type="password" required autocomplete="new-password"></label>
+  <button class="btn pri" type="submit">Enregistrer</button>${force?"":`<button class="btn" type="button" id="pwcancel">Annuler</button>`}</form><div class="err" id="lerr"></div>`);
+  if(!force)$("#pwcancel").onclick=()=>$("#auth").classList.remove("open");
+  $("#fpw").onsubmit=async e=>{e.preventDefault();const f=e.target;if(f.nouveau.value!==f.n2.value){$("#lerr").textContent="Les deux mots de passe sont différents.";return}
+    try{const r=await api("auth.change_password",{ancien:f.ancien.value,nouveau:f.nouveau.value});toast("Mot de passe modifié");await startSession(r)}catch(x){$("#lerr").textContent=x.message}}}
+function logout(msg){TOKEN=null;lsSet("rh_token",null);S.me=null;COLS.forEach(c=>S[c]=[]);clearInterval(S._poll);$("#ov").classList.remove("open");$("#main").innerHTML="";showLogin(msg)}
+async function startSession(r){
+  TOKEN=r.token;lsSet("rh_token",TOKEN);S.me=r.user;S.uid=r.user.id;
+  if(r.user.must_change_password){showChangePw(true);return}
+  S.canWrite=["rh","assistant_secop","assistant_food"].includes(r.user.role);
+  $("#who").innerHTML=`<b>${esc([r.user.prenom,r.user.nom].filter(Boolean).join(" "))}</b>${esc(r.user.role_nom)}<button class="btn sm" data-act="change-pw">Mot de passe</button><button class="btn sm" data-act="logout">Déconnexion</button>`;
+  $("#auth").classList.remove("open");$("#main").innerHTML=`<div class="empty">Chargement des données…</div>`;
+  await loadAll();route();
+  clearInterval(S._poll);S._poll=setInterval(async()=>{if(document.hidden||!TOKEN)return;try{const v=await api("data.version");if(v.version!==VERSION)await loadAll(true)}catch(e){}},30000);
+}
+async function loadAll(soft){
+  try{const d=await api("data.load");VERSION=d.version;COLS.forEach(c=>S[c]=d.docs[c]||[]);const pr=(d.docs.params||[]).find(x=>x.id==="general");S.params=pr?{...DEF_PARAMS,...pr}:{...DEF_PARAMS};S.loaded.all=1;soft?softRender():render()}
+  catch(e){if(e.status!==401)toast(e.message)}
+}
+document.addEventListener("visibilitychange",async()=>{if(!document.hidden&&TOKEN){try{const v=await api("data.version");if(v.version!==VERSION)await loadAll(true)}catch(e){}}});
+
+/* ================= UTILISATEURS ================= */
+let USERS=[],JOURNAL=[];
+async function loadUsers(){try{const [u,j]=await Promise.all([api("users.list"),api("users.journal")]);USERS=u.users;JOURNAL=j.rows;if(view==="utilisateurs")render()}catch(e){toast(e.message)}}
+R.utilisateurs=()=>{if(role()!=="rh")return "";if(!R.utilisateurs._l){R.utilisateurs._l=1;loadUsers()}
+  return head("Utilisateurs","Comptes propres à l'ERP RH, distincts des ERP Gestion commerciale et Veille. Chaque personne choisit son mot de passe à sa première connexion.",`<button class="btn pri" data-act="new-user">+ Nouveau compte</button>`)+
+  `<div class="grid g2" style="margin-bottom:14px"><div class="card"><h2>Profils et droits</h2><div class="kv small">
+   <div>Responsable RH</div><div>Tout l'ERP, SECOP et FOOD, paramètres et comptes.</div>
+   <div>Assistant RH SECOP</div><div>Saisie et suivi du personnel SECOP uniquement (dossiers, congés, paie, HSE, matériel, tâches).</div>
+   <div>Assistant RH FOOD</div><div>Saisie et suivi du personnel FOOD uniquement.</div>
+   <div>DAF</div><div>Consultation (hors dossiers médicaux HSE), validation des variables de paie, tâches Paie / DAF.</div>
+   <div>Direction générale</div><div>Consultation de tout l'ERP et des rapports, tâches de la Direction générale.</div></div></div>
+   <div class="card"><h2>Dernières connexions et actions</h2><div style="max-height:260px;overflow:auto">${JOURNAL.slice(0,40).map(j=>`<div class="alert"><span class="dot d-${/ECHEC/.test(j.action)?"bad":"b"}"></span><div class="small"><b>${esc(j.user_nom)}</b> · ${esc(j.action.toLowerCase().replace(/_/g," "))}${j.objet&&j.objet!=="utilisateurs"?" · "+esc(j.objet):""}<div class="muted">${new Date(j.at).toLocaleString("fr-FR")}</div></div></div>`).join("")||'<div class="muted">Aucune activité.</div>'}</div></div></div>
+  <div class="tbl-wrap"><table><tr><th>Nom</th><th>Identifiant</th><th>Profil</th><th>Téléphone</th><th>Statut</th><th>Dernière connexion</th><th></th></tr>${USERS.map(u=>`<tr><td><b>${esc([u.prenom,u.nom].filter(Boolean).join(" "))}</b></td><td>${esc(u.username)}</td><td><span class="pill p-b">${esc(u.role_nom)}</span></td><td>${esc(u.telephone||"")}</td><td>${u.statut==="actif"?(u.must_change_password?'<span class="pill p-warn">Mot de passe provisoire</span>':'<span class="pill p-ok">Actif</span>'):'<span class="pill p-bad">Suspendu</span>'}${u.verrouille?' <span class="pill p-bad">Verrouillé</span>':""}</td><td class="small">${u.last_login?new Date(u.last_login).toLocaleString("fr-FR"):"Jamais"}</td>
+   <td><div class="row nw"><button class="btn sm" data-act="edit-user" data-id="${u.id}">Modifier</button>${u.id!==S.uid?`<button class="btn sm" data-act="reset-pw" data-id="${u.id}">Réinitialiser</button><button class="btn sm ${u.statut==="actif"?"dan":"acc"}" data-act="user-statut" data-id="${u.id}" data-s="${u.statut==="actif"?"suspendu":"actif"}">${u.statut==="actif"?"Suspendre":"Réactiver"}</button>`:""}</div></td></tr>`).join("")||`<tr><td colspan="7"><div class="empty">Chargement…</div></td></tr>`}</table></div>`};
+function userForm(u){u=u||{};const isNew=!u.id;openModal(`<div class="mhead"><h2>${isNew?"Nouveau compte":"Modifier le compte"}</h2><button class="btn sm" data-act="close">Fermer</button></div>
+  <form class="form" id="frm"><label>Nom *<input name="nom" required value="${esc(u.nom||"")}"></label><label>Prénom<input name="prenom" value="${esc(u.prenom||"")}"></label>
+  <label>Profil *<select name="role" required>${Object.entries(ROLE_LIB).map(([k,l])=>`<option value="${k}" ${u.role===k?"selected":""}>${l}</option>`).join("")}</select></label><label>Téléphone<input name="telephone" value="${esc(u.telephone||"")}"></label>
+  ${isNew?`<label>Identifiant de connexion *<input name="username" required placeholder="ex. assistant.food"></label><label>E-mail (facultatif)<input name="email" type="email"></label><label class="full">Mot de passe provisoire * (8 caractères min., lettres et chiffres)<input name="password" required value="${mdpProvisoire()}"></label>`:""}</form>
+  ${isNew?'<p class="muted small">Communiquez l\'identifiant et le mot de passe provisoire à la personne : elle devra le changer à sa première connexion.</p>':""}
+  <div class="mfoot"><button class="btn" data-act="close">Annuler</button><button class="btn pri" data-act="save-user" data-id="${u.id||""}">Enregistrer</button></div>`)}
+function mdpProvisoire(){const c="abcdefghjkmnpqrstuvwxyz",d="23456789";let s="";for(let i=0;i<6;i++)s+=c[Math.floor(Math.random()*c.length)];return "Rh"+s+d[Math.floor(Math.random()*8)]+d[Math.floor(Math.random()*8)]}
+async function saveUser(id){if(!checkForm())return;const f=$("#frm"),x={nom:f.nom.value,prenom:f.prenom.value,role:f.role.value,telephone:f.telephone.value};
+  try{if(id)await api("users.update",{id,user:x});else{x.username=f.username.value;x.email=f.email.value;x.password=f.password.value;await api("users.create",{user:x});
+    try{await navigator.clipboard.writeText(`ERP RH SECOP & FOOD\nAdresse : ${location.href.split("#")[0]}\nIdentifiant : ${x.username}\nMot de passe provisoire : ${x.password}`)}catch(e){}}
+    closeModal();toast(id?"Compte modifié":"Compte créé. Identifiants copiés : collez-les dans un message à la personne.");loadUsers()}catch(e){toast(e.message)}}
+function resetPwForm(id){const u=USERS.find(x=>x.id===id);openModal(`<div class="mhead"><h2>Réinitialiser le mot de passe</h2><button class="btn sm" data-act="close">Fermer</button></div><p>Compte de <b>${esc([u.prenom,u.nom].filter(Boolean).join(" "))}</b> (${esc(u.username)}).</p>
+  <form class="form" id="frm"><label class="full">Nouveau mot de passe provisoire<input name="password" required value="${mdpProvisoire()}"></label></form><div class="mfoot"><button class="btn" data-act="close">Annuler</button><button class="btn pri" data-act="save-reset" data-id="${id}">Réinitialiser</button></div>`)}
+async function saveReset(id){if(!checkForm())return;const p=$("#frm").password.value,u=USERS.find(x=>x.id===id);try{await api("users.reset_password",{id,password:p});try{await navigator.clipboard.writeText(`Identifiant : ${u.username}\nMot de passe provisoire : ${p}`)}catch(e){}closeModal();toast("Mot de passe réinitialisé et copié.");loadUsers()}catch(e){toast(e.message)}}
+
+(async()=>{
+  TOKEN=lsGet("rh_token");
+  if(TOKEN){try{const r=await api("auth.me");await startSession({user:r.user,token:TOKEN});return}catch(e){if(e.status===428)return;TOKEN=null;lsSet("rh_token",null)}}
+  try{const st=await api("setup.status");st.needsSetup?showSetup():showLogin()}catch(e){showLogin(e.message)}
+})();
+</script>
+</body>
+</html>
