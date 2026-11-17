@@ -557,7 +557,17 @@ function pie3d(canvas,items,legendEl,opts={}){
     ctx.font=`700 ${opts.small?15:17}px Figtree, system-ui, sans-serif`; ctx.lineWidth=3; ctx.strokeStyle="rgba(0,0,0,.35)"; ctx.strokeText(txt,x,y); ctx.fillStyle="#fff"; ctx.fillText(txt,x,y); }
 }
 const OUR_COLS=()=>[tok("--purple"),tok("--leaf"),tok("--purple-2"),tok("--ring"),"#c07a12","#8fc062"], GREYS=["#c9c5d6","#b3aec2","#9e99b0","#8d879f","#7a748d","#dad7e3","#a49fb8","#bebac9","#d2cfdc","#948fa6"];
-function shareItems(rows){ const t=agg(rows,r=>r.marque).filter(r=>r.score>0).sort((a,b)=>isOurs(b.k)-isOurs(a.k)||b.score-a.score); let io=0,ic=0; const oc=OUR_COLS(); return t.map(r=>({label:r.k,value:r.score,color:isOurs(r.k)?oc[io++%6]:GREYS[ic++%GREYS.length]})); }
+/* Concurrents : une couleur franche et différente par marque, toujours la même d'un graphique à l'autre */
+const COMP_PAL=["#E67E22","#2980B9","#C0392B","#F1C40F","#16A085","#E84393","#8E5B3A","#34495E","#00B5D8","#95A5A6","#D35400","#A3CB38","#6F1E51","#1B1464","#B8860B","#12CBC4"];
+function compColor(name){
+  const b=brandOf(name);
+  for(const seg of ["MAYONNAISE","BOUILLON"]){ /* numérotation par segment : pas deux concurrents de la même couleur dans un graphique */
+    const all=uniq(DEF_BRANDS[seg].concat(S.fiches.filter(f=>f.segment===seg).flatMap(f=>(f.lignes||[]).map(l=>l.marque||l.produit||""))).map(brandOf).filter(x=>x&&!isOurs(x))).sort();
+    const i=all.indexOf(b); if(i>=0) return COMP_PAL[i%COMP_PAL.length];
+  }
+  return COMP_PAL[0];
+}
+function shareItems(rows){ const t=agg(rows,r=>r.marque).filter(r=>r.score>0).sort((a,b)=>isOurs(b.k)-isOurs(a.k)||b.score-a.score); let io=0; const oc=OUR_COLS(); return t.map(r=>({label:r.k,value:r.score,color:isOurs(r.k)?oc[io++%6]:compColor(r.k)})); }
 
 /* ---------- Vue : Tableau de bord ---------- */
 function renderDashboard(){
@@ -700,7 +710,7 @@ function renderPresence(){
   const op=baseOpts(); delete op.scales; op.plugins.legend.display=true; op.plugins.legend.position="right"; op.plugins.legend.labels.boxWidth=12;
   op.plugins.tooltip.callbacks.label=c=>` ${c.label} : ${tot?(c.raw/tot*100).toFixed(1).replace(".",","):0} % (${c.raw})`;
   pie3d($("cPart3"),shareItems(rows),$("cPart3L"));
-  chart("cPart",{type:"doughnut",data:{labels:pv.map(r=>r.k),datasets:[{data:pv.map(r=>r.score),backgroundColor:pv.map(r=>isOurs(r.k)?ourPie[io2++%6]:greys[ic2++%8]),borderColor:tok("--surface"),borderWidth:2}]},options:{...op,cutout:"55%"}});
+  chart("cPart",{type:"doughnut",data:{labels:pv.map(r=>r.k),datasets:[{data:pv.map(r=>r.score),backgroundColor:pv.map(r=>isOurs(r.k)?ourPie[io2++%6]:compColor(r.k)),borderColor:tok("--surface"),borderWidth:2}]},options:{...op,cutout:"55%"}});
   // Nos produits par marché
   const ourBrands=[...new Set(rows.filter(r=>isOurs(r.marque)&&(seg==="BOUILLON"||f.fmt!=="TOUS"||/1L$/i.test(r.marque))).map(r=>r.marque))].slice(0,5);
   const mks=[...new Set(rows.map(r=>r.fi.marche))].sort();
