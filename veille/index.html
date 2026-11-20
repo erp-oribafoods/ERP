@@ -416,19 +416,11 @@ details.fiche > summary{cursor:pointer}
     <div id="repPreview"></div>
     <div class="formactions" style="margin-top:14px"><span class="note" id="repMsg"></span><button class="btn green" type="submit" id="repBtn">Télécharger le rapport PDF</button></div>
   </form>
-  <div class="card"><h3>Contenu du rapport</h3>
-    <ol class="sub" style="margin:8px 0 0 18px;line-height:1.7">
-      <li>Synthèse : fiches par étude, échantillons, marchés, axes, agents, comparaison avec la période précédente, points clés</li>
-      <li>Nos 5 produits : part de présence, évolution, rang, sondages calebasse et consommateurs, prix consommateur</li>
-      <li>Classement de toutes les marques pour chaque étude et chaque segment, avec secteurs 3D</li>
-      <li>Résultats par axe de Niamey</li>
-      <li>Résultats par marché</li>
-      <li>Activité de chaque agent</li>
-      <li>Alertes marché (concurrent qui nous devance de 10 points ou plus)</li>
-      <li>Relevés de prix</li>
-      <li>Actions concurrentes signalées</li>
-      <li>Observations terrain, puis en annexe le détail de chaque fiche</li>
-    </ol></div>
+  <div class="grid g-3" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
+    <div class="card"><h3>Journalier</h3><p class="sub">L'essentiel de la journée, en 1 ou 2 pages.</p><ul class="sub" style="margin:8px 0 0 18px;line-height:1.6"><li>Chiffres du jour : fiches, boutiques ou personnes, marchés, agents</li><li>Travail réalisé : chaque visite avec la part de nos produits et le concurrent en tête</li><li>Nos produits aujourd'hui</li><li>À signaler : alertes, actions concurrentes, observations</li></ul></div>
+    <div class="card"><h3>Hebdomadaire</h3><p class="sub">Les faits marquants de la semaine.</p><ul class="sub" style="margin:8px 0 0 18px;line-height:1.6"><li>Chiffres de la semaine comparés à la semaine précédente</li><li>Nos 5 produits et leur évolution, faits marquants</li><li>Activité jour par jour</li><li>Classement de présence en barres, résultats par axe</li><li>Points d'attention et activité des agents</li></ul></div>
+    <div class="card"><h3>Mensuel</h3><p class="sub">Tout ce qui a été fait dans le mois.</p><ul class="sub" style="margin:8px 0 0 18px;line-height:1.6"><li>Page de garde avec chiffres clés et sommaire</li><li>Synthèse, nos produits, évolution semaine par semaine</li><li>Classement de toutes les marques par étude (secteurs 3D)</li><li>Axes, marchés, agents, alertes, prix, concurrence, observations</li><li>Annexe : le détail de chaque fiche</li></ul></div>
+  </div>
 </div></section>
 
 <!-- ============ BASE ============ -->
@@ -1359,159 +1351,259 @@ async function genReport(){
 function buildPdf(kind,f){
   const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:"mm",format:"a4"});
   const W=210, M=14, CW=W-2*M; let y=0;
-  const P=hexRgb("#46307a"), G=hexRgb("#5e8a3a"), INK=[33,28,48], MUT=[105,99,122], SOFT=[243,240,249];
+  const P=hexRgb("#46307a"), G=hexRgb("#5e8a3a"), INK=[33,28,48], MUT=[105,99,122], SOFT=[244,241,249], RED=[192,57,43];
+  const ACC = kind==="J"?G:P;
   const F=S.fiches.filter(x=>fiOK(x,f)).sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.marche).localeCompare(String(b.marche)));
   const prevK=perPrev(f.mois), FP=S.fiches.filter(x=>fiOK(x,{...f,mois:prevK}));
   const zM=new Set(S.fiches.filter(x=>f.zone==="TOUTES"||x.zone===f.zone).map(x=>x.marche));
-  const A=S.veille.filter(v=>inPer(v.date,f.mois)&&(f.zone==="TOUTES"||!v.marche||zM.has(v.marche)));
+  const inZ=v=>f.zone==="TOUTES"||!v.marche||zM.has(v.marche);
+  const A=S.veille.filter(v=>inPer(v.date,f.mois)&&inZ(v)).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  const AP=S.veille.filter(v=>inPer(v.date,prevK)&&inZ(v));
   const scope=`${f.zone==="TOUTES"?"Toutes les zones":"Zone : "+f.zone}${f.axe!=="TOUS"?" · "+axeLabel(f.axe):""}`;
-  const L=o=>lines({...f,...o});
-  const LP=o=>lines({...f,mois:prevK,...o});
-  const titre=KIND_TXT[kind];
-
-  const space=h=>{ if(y+h>282){ doc.addPage(); y=18; } };
-  const h1=(txt)=>{ space(45); y+=3; doc.setFillColor(...P); doc.rect(M,y,3,7,"F"); doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(...P); doc.text(T(txt),M+6,y+5.5); y+=11; };
-  const h2=(txt)=>{ space(10); doc.setFont("helvetica","bold"); doc.setFontSize(10.5); doc.setTextColor(...INK); doc.text(T(txt),M,y+4); y+=7; };
-  const para=(txt,size=9,color=MUT)=>{ doc.setFont("helvetica","normal"); doc.setFontSize(size); doc.setTextColor(...color); const ls=doc.splitTextToSize(T(txt),CW); space(ls.length*4.2+2); doc.text(ls,M,y+3.5); y+=ls.length*4.2+2; };
-  const table=(head,body,opt={})=>{
-    doc.autoTable({startY:y,margin:{left:M,right:M,top:18,bottom:16},head:[head.map(T)],body:body.map(r=>r.map(c=>typeof c==="object"&&c!==null&&!Array.isArray(c)?{...c,content:T(c.content)}:T(c))),
-      theme:"grid",styles:{font:"helvetica",fontSize:8,cellPadding:1.6,textColor:INK,lineColor:[222,218,232],lineWidth:.15,overflow:"linebreak"},
-      headStyles:{fillColor:P,textColor:255,fontStyle:"bold",fontSize:8},alternateRowStyles:{fillColor:[249,248,252]},...opt});
-    y=doc.lastAutoTable.finalY+5;
-  };
-
-  // En-tête
-  doc.setFillColor(...P); doc.rect(0,0,W,34,"F");
-  try{ const logo=document.querySelector(".logo img")?.src; if(logo){ doc.setFillColor(255,255,255); doc.roundedRect(M,6,34,22,2,2,"F"); doc.addImage(logo,"JPEG",M+1.5,7.5,31,19); } }catch(e){}
-  doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(17); doc.text(T(titre),M+40,14);
-  doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.text(T("Veille & Enquêtes · Oriba Foods"),M+40,20);
-  doc.setFont("helvetica","bold"); doc.setFontSize(10.5); doc.text(T(perLabel(f.mois)),M+40,27);
-  y=41; doc.setTextColor(...MUT); doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
-  doc.text(T(`${scope} · Généré le ${new Date().toLocaleDateString("fr-FR")} à ${new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})} par ${[S.user?.prenom,S.user?.nom].filter(Boolean).join(" ")||"-"}`),M,y); y+=5;
-
-  // 1. Synthèse
-  h1("1. Synthèse de la période");
+  const L=o=>lines({...f,...o}), LP=o=>lines({...f,mois:prevK,...o});
+  const titre=KIND_TXT[kind], prevTxt={J:"la veille",S:"la semaine précédente",M:"le mois précédent"}[kind];
   const nT=(X,t)=>X.filter(x=>x.type===t).length, ech=X=>X.filter(x=>x.type!=="PRIX").reduce((s,x)=>s+(+x.echantillon||0),0);
-  const kp=[["Fiches collectées",F.length,FP.length],["Études de présence",nT(F,"PRESENCE"),nT(FP,"PRESENCE")],["Sondages calebasse",nT(F,"CALEBASSE"),nT(FP,"CALEBASSE")],["Sondages consommateurs",nT(F,"SONDAGE"),nT(FP,"SONDAGE")],["Relevés de prix",nT(F,"PRIX"),nT(FP,"PRIX")],
-    ["Boutiques visitées / personnes interrogées",ech(F),ech(FP)],["Marchés couverts",new Set(F.map(x=>x.marche)).size,new Set(FP.map(x=>x.marche)).size],["Axes couverts",new Set(F.filter(x=>x.axe).map(x=>x.axe)).size,new Set(FP.filter(x=>x.axe).map(x=>x.axe)).size],["Agents actifs",new Set(F.map(x=>x.agent)).size,new Set(FP.map(x=>x.agent)).size],["Actions concurrentes signalées",A.length,S.veille.filter(v=>inPer(v.date,prevK)).length]];
-  table(["Indicateur","Période","Période précédente"],kp.map(r=>[r[0],{content:String(T(Number(r[1]).toLocaleString("fr-FR"))),styles:{fontStyle:"bold",halign:"right"}},{content:String(T(Number(r[2]).toLocaleString("fr-FR"))),styles:{halign:"right",textColor:MUT}}]),{columnStyles:{0:{cellWidth:110}}});
-  if(!F.length){ para("Aucune fiche n'a été enregistrée pour cette sélection. Les sections suivantes sont vides."); }
+  const nb=v=>T(Number(v||0).toLocaleString("fr-FR"));
+  const segTxt=s=>s==="BOUILLON"?"Bouillon":"Mayonnaise";
+  const alerts=reportAlerts(F);
+  const TS={font:"helvetica",fontSize:8,cellPadding:1.6,textColor:INK,lineColor:[222,218,232],lineWidth:.15,overflow:"linebreak"};
 
-  // Points clés
-  const keys=[];
-  for(const seg of ["BOUILLON","MAYONNAISE"]){ const r=agg(L({seg,type:"PRESENCE"}),x=>x.marque).sort((a,b)=>b.rate-a.rate); if(!r.length) continue;
-    const ours=r.filter(x=>isOurs(x.k)); keys.push(`${seg==="BOUILLON"?"Bouillon":"Mayonnaise"} : le leader de la présence est ${r[0].k} (${pctTxt(r[0].rate)}). ${ours.length?`Notre meilleur produit est ${ours[0].k} (${pctTxt(ours[0].rate)}, ${r.indexOf(ours[0])+1}e rang sur ${r.length}).`:"Aucun de nos produits n'a été trouvé."}`); }
-  const alerts=reportAlerts(F); if(alerts.length) keys.push(`${alerts.length} alerte${alerts.length>1?"s":""} : un concurrent devance nettement l'un de nos produits sur certains marchés (détail en section 7).`);
-  if(keys.length){ h2("Points clés"); keys.forEach(k=>para("•  "+k,9,INK)); }
-
-  // 2. Nos produits
-  h1("2. Nos produits");
-  const prodRows=OUR.map(p=>{
-    const share=(rows)=>{ const s=shareBy(rows,r=>p.test(r.marque),()=>1)[0]; return s?s.rate:null; };
-    const pres=share(L({seg:p.seg,type:"PRESENCE"})), presP=share(LP({seg:p.seg,type:"PRESENCE"}));
-    const r=agg(L({seg:p.seg,type:"PRESENCE"}),x=>brandOf(x.marque)).sort((a,b)=>b.rate-a.rate); const i=r.findIndex(x=>p.test(x.k));
-    const pr=F.filter(x=>x.type==="PRIX"&&x.segment===p.seg).flatMap(x=>x.lignes||[]).filter(l=>p.test(norm(l.produit))&&+l.prixConso>0);
-    const dv=pres!=null&&presP!=null?(pres-presP)*100:null;
-    return [p.nom,{content:pctTxt(pres),styles:{fontStyle:"bold",halign:"right"}},{content:dv==null?"-":(dv>0?"+":"")+dv.toFixed(0)+" pts",styles:{halign:"right",textColor:dv==null?MUT:dv>=0?G:[192,57,43]}},{content:i>=0?`${i+1}e / ${r.length}`:"-",styles:{halign:"center"}},{content:pctTxt(share(L({seg:p.seg,type:"CALEBASSE"}))),styles:{halign:"right"}},{content:pctTxt(share(L({seg:p.seg,type:"SONDAGE"}))),styles:{halign:"right"}},{content:pr.length?fcfaTxt(avg(pr.map(l=>+l.prixConso))):"-",styles:{halign:"right"}}];
-  });
-  table(["Produit","Part présence","Évolution","Rang","Sondage calebasse","Sondage conso.","Prix conso. moyen"],prodRows);
-  para("Part = citations de la marque ÷ toutes les citations du segment (total = 100 %). Évolution = écart avec la période précédente, en points.",7.5);
-
-  // 3. Classements par étude
-  space(100); h1("3. Classement des marques par étude");
-  let any=false;
-  for(const seg of ["BOUILLON","MAYONNAISE"]) for(const t of ["PRESENCE","CALEBASSE","SONDAGE"]){
-    const rows=L({seg,type:t}); if(!rows.length) continue; any=true;
-    const r=agg(rows,x=>x.marque).filter(x=>x.score>0).sort((a,b)=>b.score-a.score); const rp=round100(r.map(x=>x.score));
-    const nf=new Set(rows.map(x=>x.fi)).size, ne=[...new Set(rows.map(x=>x.fi))].reduce((s,x)=>s+(+x.echantillon||0),0);
-    space(80); h2(`${seg==="BOUILLON"?"Bouillon":"Mayonnaise"} · ${TYPES[t]} (${nf} fiche${nf>1?"s":""}, ${T(ne.toLocaleString("fr-FR"))} ${t==="PRESENCE"?"boutiques":"personnes"})`);
-    let oi=0; const items=[...r].sort((a,b)=>isOurs(b.k)-isOurs(a.k)||b.score-a.score).map(x=>({label:x.k,value:x.score,color:brandColorPdf(x.k,isOurs(x.k)?oi++:0)}));
-    const col=new Map(items.map(i=>[i.label,i.color]));
-    const yTop=y; const img=pieImage(items); doc.addImage(img,"PNG",M+CW-78,yTop,78,40.7);
-    doc.autoTable({startY:yTop,margin:{left:M,right:M+82,top:18,bottom:16},head:[["","Rang","Marque","Citations","Part"]],
-      body:r.map((x,k)=>["",String(k+1),T(x.k),String(x.score),rp[k]+" %"]),theme:"grid",
-      styles:{font:"helvetica",fontSize:7.5,cellPadding:1.2,textColor:INK,lineColor:[222,218,232],lineWidth:.15},headStyles:{fillColor:seg==="MAYONNAISE"?G:P,textColor:255,fontSize:7.5},
-      columnStyles:{0:{cellWidth:4},1:{cellWidth:10,halign:"center"},3:{halign:"right"},4:{halign:"right",fontStyle:"bold"}},
-      didParseCell:d=>{ if(d.section==="body"&&isOurs(r[d.row.index].k)){ d.cell.styles.fontStyle="bold"; d.cell.styles.fillColor=[240,236,248]; } },
-      didDrawCell:d=>{ if(d.section==="body"&&d.column.index===0){ doc.setFillColor(...hexRgb(col.get(r[d.row.index].k)||"#999999")); doc.rect(d.cell.x+1,d.cell.y+1.2,2.4,d.cell.height-2.4,"F"); } }});
-    y=Math.max(doc.lastAutoTable.finalY,yTop+43)+6;
-  }
-  if(!any) para("Aucune étude de présence ni sondage sur la période.");
-
-  // 4. Par axe
-  const fN={...f,zone:f.zone==="TOUTES"?"NIAMEY":f.zone};
-  const FN=S.fiches.filter(x=>fiOK(x,fN));
-  if(FN.some(x=>x.axe)||norm(fN.zone)==="NIAMEY"){
-    h1(`4. Résultats par axe (${fN.zone})`);
-    const axList=uniq(FN.map(x=>x.axe||"_SANS")).sort((a,b)=>(a==="_SANS")-(b==="_SANS")||a.localeCompare(b,"fr"));
-    if(!axList.length) para("Aucune fiche sur les axes pour cette période.");
-    else{
-      const body=axList.map(a=>{ const Fa=FN.filter(x=>(x.axe||"_SANS")===a);
-        const cells=OUR.map(p=>{ const s=shareBy(lines({...fN,axe:a,seg:p.seg,type:"PRESENCE"}),r=>p.test(r.marque),()=>1)[0]; const all=lines({...fN,axe:a,seg:p.seg,type:"PRESENCE"}).length; return {content:all?pctTxt(s?s.rate:0):"-",styles:{halign:"right"}}; });
-        return [axeLabel(a),{content:String(Fa.length),styles:{halign:"right"}},{content:String(new Set(Fa.map(x=>x.marche)).size),styles:{halign:"right"}},{content:T(ech(Fa).toLocaleString("fr-FR")),styles:{halign:"right"}},...cells]; });
-      table(["Axe","Fiches","Marchés","Échant.",...OUR.map(p=>p.nom.replace(/^(Arôme|Mayonnaise) /,""))],body,{styles:{fontSize:7.5,cellPadding:1.4,font:"helvetica",textColor:INK,lineColor:[222,218,232],lineWidth:.15}});
-      para("Parts de présence (études de présence) de chacun de nos produits sur l'axe.",7.5);
-    }
-  }
-
-  // 5. Par marché
-  h1("5. Résultats par marché");
-  const mk=uniq(F.filter(x=>x.type!=="PRIX").map(x=>x.marche));
-  if(!mk.length) para("Aucune fiche d'enquête sur la période.");
-  else table(["Marché","Axe","Fiches","Échant.","Nos produits bouillon","Nos produits mayonnaise","Concurrent en tête"],mk.map(m=>{
-    const Fm=F.filter(x=>x.marche===m&&x.type!=="PRIX"); const pb=shareBy(L({seg:"BOUILLON"}).filter(r=>r.fi.marche===m),r=>isOurs(r.marque),()=>1)[0], pm=shareBy(L({seg:"MAYONNAISE"}).filter(r=>r.fi.marche===m),r=>isOurs(r.marque),()=>1)[0];
-    const lead=agg(lines({...f}).filter(r=>r.fi.marche===m&&!isOurs(r.marque)),r=>brandOf(r.marque)).sort((a,b)=>b.score-a.score)[0];
-    const hasB=L({seg:"BOUILLON"}).some(r=>r.fi.marche===m), hasM=L({seg:"MAYONNAISE"}).some(r=>r.fi.marche===m);
-    return [m,uniq(Fm.map(x=>x.axe).filter(Boolean)).map(axeLabel).join(", ")||"-",{content:String(Fm.length),styles:{halign:"right"}},{content:T(ech(Fm).toLocaleString("fr-FR")),styles:{halign:"right"}},{content:hasB?pctTxt(pb?pb.rate:0):"-",styles:{halign:"right"}},{content:hasM?pctTxt(pm?pm.rate:0):"-",styles:{halign:"right"}},lead?lead.k:"-"]; }),{styles:{fontSize:7.5,cellPadding:1.4,font:"helvetica",textColor:INK,lineColor:[222,218,232],lineWidth:.15}});
-
-  // 6. Par agent
-  h1("6. Activité des agents");
-  const ag=uniq(F.map(x=>x.agent));
-  if(!ag.length) para("Aucune fiche sur la période.");
-  else table(["Agent","Fiches","Présence","Calebasse","Sondage conso.","Prix","Marchés","Échant. cumulé"],ag.map(a=>{ const Fa=F.filter(x=>x.agent===a); return [a,...[Fa.length,nT(Fa,"PRESENCE"),nT(Fa,"CALEBASSE"),nT(Fa,"SONDAGE"),nT(Fa,"PRIX"),new Set(Fa.map(x=>x.marche)).size,ech(Fa)].map(v=>({content:T(Number(v).toLocaleString("fr-FR")),styles:{halign:"right"}}))]; }));
-
-  // 7. Alertes
-  h1("7. Alertes marché");
-  if(!alerts.length) para("Aucune alerte : sur les marchés visités, aucun concurrent ne devance l'un de nos produits de 10 points ou plus.");
-  else table(["Marché","Date","Notre produit","Part","Concurrent en tête","Part","Écart"],alerts.map(a=>[a.marche,fmtDate(a.date),a.ours,{content:pctTxt(a.ro),styles:{halign:"right"}},a.comp,{content:pctTxt(a.rc),styles:{halign:"right"}},{content:Math.round(a.gap*100)+" pts",styles:{halign:"right",fontStyle:"bold",textColor:[192,57,43]}}]));
-
-  // 8. Prix
-  h1("8. Relevés de prix");
-  const PR=F.filter(x=>x.type==="PRIX");
-  if(!PR.length) para("Aucun relevé de prix sur la période.");
-  else{ const g=new Map(); for(const x of PR) for(const l of x.lignes||[]){ const k=x.segment+"|"+norm(l.produit); if(!g.has(k)) g.set(k,[]); g.get(k).push(l); }
-    const rows=[...g].map(([k,a])=>({seg:k.split("|")[0],p:k.split("|")[1],n:a.length,g:avg(a.map(l=>+l.prixGros||null)),d:avg(a.map(l=>+l.prixDemiGros||null)),r:avg(a.map(l=>+l.prixDetail||null)),c:avg(a.map(l=>+l.prixConso||null))})).sort((a,b)=>a.seg.localeCompare(b.seg)||isOurs(b.p)-isOurs(a.p)||(b.c||0)-(a.c||0));
-    table(["Segment","Produit","Relevés","Grossiste","½ gros","Détaillant","Prix conso."],rows.map(x=>[x.seg==="BOUILLON"?"Bouillon":"Mayonnaise",{content:x.p,styles:isOurs(x.p)?{fontStyle:"bold"}:{}},{content:String(x.n),styles:{halign:"right"}},{content:fcfaTxt(x.g),styles:{halign:"right"}},{content:fcfaTxt(x.d),styles:{halign:"right"}},{content:fcfaTxt(x.r),styles:{halign:"right"}},{content:fcfaTxt(x.c),styles:{halign:"right",fontStyle:"bold"}}]));
-    para("Moyennes des relevés de la période. Prix grossiste, ½ gros et détaillant au carton ; prix consommateur à l'unité de vente.",7.5); }
-
-  // 9. Veille concurrentielle
-  h1("9. Actions concurrentes signalées");
-  if(!A.length) para("Aucune action concurrente signalée sur la période.");
-  else table(["Date","Marché","Marque","Catégorie","Impact","Description"],[...A].sort((a,b)=>String(a.date).localeCompare(String(b.date))).map(v=>[fmtDate(v.date),v.marche||"-",v.marque,v.categorie,v.impact,v.description]),{columnStyles:{5:{cellWidth:70}}});
-
-  // 10. Observations
-  h1("10. Observations terrain");
-  const OB=F.filter(x=>(x.observations||"").trim());
-  if(!OB.length) para("Aucune observation saisie par les agents sur la période.");
-  else table(["Date","Marché","Agent","Étude","Observation"],OB.map(x=>[fmtDate(x.date),x.marche,x.agent,TYPES[x.type]||x.type,x.observations]),{columnStyles:{4:{cellWidth:80}}});
-
-  // Annexe
-  if(F.length){
-    doc.addPage(); y=18; h1("Annexe · Détail de toutes les fiches de la période");
-    table(["Date","Étude","Marché / axe","Agent","Éch.","Résultats (citations · part)"],F.map(x=>{
-      let res;
-      if(x.type==="PRIX") res=(x.lignes||[]).map(l=>`${norm(l.produit)} : ${fcfaTxt(+l.prixConso||null)}`).join(" ; ");
-      else { const Ls=(x.lignes||[]).filter(l=>+l.score>0).slice().sort((a,b)=>b.score-a.score); const rp=round100(Ls.map(l=>+l.score)); res=Ls.map((l,k)=>`${l.marque} ${l.score} (${rp[k]} %)`).join(" ; ")||"aucune citation"; }
-      return [fmtDate(x.date),`${TYPES[x.type]||x.type}\n${x.segment==="BOUILLON"?"Bouillon":"Mayonnaise"}`,`${x.marche}${x.axe?"\n"+axeLabel(x.axe):""}`,x.agent,{content:x.echantillon==null?"-":String(x.echantillon),styles:{halign:"right"}},res];
-    }),{styles:{fontSize:7,cellPadding:1.3,font:"helvetica",textColor:INK,lineColor:[222,218,232],lineWidth:.15},columnStyles:{0:{cellWidth:17},1:{cellWidth:26},2:{cellWidth:30},3:{cellWidth:24},4:{cellWidth:10},5:{cellWidth:"auto"}}});
-  }
-
-  // Pieds de page
-  const n=doc.getNumberOfPages();
-  for(let i=1;i<=n;i++){ doc.setPage(i); doc.setDrawColor(222,218,232); doc.line(M,287,W-M,287); doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(...MUT);
-    doc.text(T(`Oriba Foods · ${titre} · ${perLabel(f.mois)} · ${scope}`),M,291); doc.text(`Page ${i} / ${n}`,W-M,291,{align:"right"}); }
+  /* ---- outils de mise en page ---- */
+  const space=h=>{ if(y+h>281){ doc.addPage(); y=16; } };
+  const h1=(txt,need=45)=>{ space(need); y+=2; doc.setFillColor(...ACC); doc.rect(M,y,3,7,"F"); doc.setFont("helvetica","bold"); doc.setFontSize(12.5); doc.setTextColor(...ACC); doc.text(T(txt),M+6,y+5.5); y+=10.5; };
+  const h2=txt=>{ space(10); doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(...INK); doc.text(T(txt),M,y+4); y+=6.5; };
+  const para=(txt,size=9,color=MUT,style="normal")=>{ doc.setFont("helvetica",style); doc.setFontSize(size); doc.setTextColor(...color); const ls=doc.splitTextToSize(T(txt),CW); space(ls.length*4.1+2); doc.text(ls,M,y+3.5); y+=ls.length*4.1+1.8; };
+  const bullet=(txt,color=INK)=>{ doc.setFont("helvetica","normal"); doc.setFontSize(9); const ls=doc.splitTextToSize(T(txt),CW-6); space(ls.length*4.1+2); doc.setFillColor(...ACC); doc.circle(M+1.5,y+2.4,.9,"F"); doc.setTextColor(...color); doc.text(ls,M+5,y+3.5); y+=ls.length*4.1+1.6; };
+  const cell=(c)=>typeof c==="object"&&c!==null&&!Array.isArray(c)?{...c,content:T(c.content)}:T(c);
+  const table=(head,body,opt={})=>{ doc.autoTable({startY:y,margin:{left:M,right:M,top:16,bottom:16},head:[head.map(T)],body:body.map(r=>r.map(cell)),theme:"grid",styles:TS,
+      headStyles:{fillColor:ACC,textColor:255,fontStyle:"bold",fontSize:8},alternateRowStyles:{fillColor:[249,248,252]},...opt}); y=doc.lastAutoTable.finalY+5; };
+  const R=(v,st={})=>({content:String(v),styles:{halign:"right",...st}});
+  const delta=(a,b,suffix="")=>{ if(b==null||a==null) return {txt:"",col:MUT}; const d=a-b; return {txt:(d>0?"+":"")+(suffix===" pts"?d.toFixed(0):nb(d))+suffix+" vs "+{J:"la veille",S:"sem. préc.",M:"mois préc."}[kind],col:d>0?G:d<0?RED:MUT}; };
+  const cards=(items)=>{ const n=items.length, gap=3, w=(CW-gap*(n-1))/n, h=22; space(h+4);
+    items.forEach((it,i)=>{ const x=M+i*(w+gap); doc.setFillColor(...SOFT); doc.roundedRect(x,y,w,h,2,2,"F"); doc.setFillColor(...ACC); doc.rect(x,y+3,1.1,h-6,"F");
+      doc.setFont("helvetica","bold"); doc.setFontSize(6.6); doc.setTextColor(...MUT); doc.text(doc.splitTextToSize(T(it[0]).toUpperCase(),w-6)[0],x+4,y+5.5);
+      doc.setFontSize(15); doc.setTextColor(...INK); doc.text(T(String(it[1])),x+4,y+13.5);
+      if(it[2]){ doc.setFont("helvetica","normal"); doc.setFontSize(6.8); doc.setTextColor(...(it[3]||MUT)); doc.text(doc.splitTextToSize(T(it[2]),w-6)[0],x+4,y+18.8); } });
+    y+=h+5; };
+  const barList=(x0,w,title,rows,col)=>{ let yy=y; doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(...INK); doc.text(T(title),x0,yy+3.5); yy+=6.5;
+    if(!rows.length){ doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(...MUT); doc.text(T("Pas d'étude de présence."),x0,yy+3); return yy+6; }
+    const mx=Math.max(...rows.map(r=>r.rate),.01), lw=30, bw=w-lw-14, rp=round100(rows.map(r=>r.score));
+    rows.forEach((r,i)=>{ const ours=isOurs(r.k); doc.setFont("helvetica",ours?"bold":"normal"); doc.setFontSize(7.5); doc.setTextColor(...INK);
+      doc.text(doc.splitTextToSize(T(r.k),lw-1)[0],x0,yy+3.2); doc.setFillColor(...(ours?col:[200,196,212])); doc.rect(x0+lw,yy+.6,Math.max(.6,bw*r.rate/mx),3.4,"F");
+      doc.text((r.pct??rp[i])+" %",x0+lw+bw*r.rate/mx+1.5,yy+3.2); yy+=5.3; });
+    return yy+2; };
+  const header=(sub)=>{ doc.setFillColor(...ACC); doc.rect(0,0,W,kind==="J"?26:32,"F");
+    try{ const logo=document.querySelector(".logo img")?.src; if(logo){ doc.setFillColor(255,255,255); doc.roundedRect(M,kind==="J"?4.5:5,kind==="J"?28:33,kind==="J"?17:22,2,2,"F"); doc.addImage(logo,"JPEG",M+1.3,kind==="J"?5.8:6.4,kind==="J"?25.4:30.4,kind==="J"?14.4:19.2); } }catch(e){}
+    const xT=M+(kind==="J"?34:39); doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(kind==="J"?15:17); doc.text(T(titre),xT,kind==="J"?11:13.5);
+    doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.text(T(sub),xT,kind==="J"?17:20);
+    doc.setFontSize(8.5); doc.text(T(`${scope} · Veille & Enquêtes Oriba Foods`),xT,kind==="J"?22:26.5);
+    y=(kind==="J"?26:32)+6; doc.setTextColor(...MUT); doc.setFont("helvetica","normal"); doc.setFontSize(7.5);
+    doc.text(T(`Généré le ${new Date().toLocaleDateString("fr-FR")} à ${new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})} par ${[S.user?.prenom,S.user?.nom].filter(Boolean).join(" ")||"-"}`),M,y); y+=5; };
+  const prodShare=(rows,p)=>{ if(!rows.length) return null; const s=shareBy(rows,r=>p.test(r.marque),()=>1)[0]; return s?s.rate:0; };
+  const oursInFiche=x=>{ const tot=(x.lignes||[]).reduce((a,l)=>a+(+l.score||0),0); if(!tot) return {txt:"-",lead:"-"};
+    const o=(x.lignes||[]).filter(l=>isOurs(l.marque)&&+l.score>0).sort((a,b)=>b.score-a.score).map(l=>`${brandOf(l.marque)} ${Math.round(l.score/tot*100)} %`);
+    const c=(x.lignes||[]).filter(l=>!isOurs(l.marque)).sort((a,b)=>b.score-a.score)[0];
+    return {txt:o.join(" · ")||"absents",lead:c&&+c.score>0?`${brandOf(c.marque)} ${Math.round(c.score/tot*100)} %`:"-"}; };
+  const prodTable=(withRank=true)=>{
+    const rows=OUR.map(p=>{ const pres=prodShare(L({seg:p.seg,type:"PRESENCE"}),p), presP=prodShare(LP({seg:p.seg,type:"PRESENCE"}),p);
+      const r=agg(L({seg:p.seg,type:"PRESENCE"}),x=>brandOf(x.marque)).sort((a,b)=>b.rate-a.rate); const i=r.findIndex(x=>p.test(x.k));
+      const dv=pres!=null&&presP!=null?(pres-presP)*100:null;
+      return [p.nom,R(pctTxt(pres),{fontStyle:"bold"}),R(dv==null?"-":(dv>0?"+":"")+dv.toFixed(0)+" pts",{textColor:dv==null?MUT:dv>=0?G:RED}),...(withRank?[{content:i>=0?`${i+1}e / ${r.length}`:"-",styles:{halign:"center"}}]:[]),R(pctTxt(prodShare(L({seg:p.seg,type:"CALEBASSE"}),p))),R(pctTxt(prodShare(L({seg:p.seg,type:"SONDAGE"}),p)))]; });
+    table(["Produit","Part de présence",`Évolution vs ${prevTxt}`,...(withRank?["Rang"]:[]),"Sondage calebasse","Sondage conso."],rows);
+  };
+  const footer=()=>{ const n=doc.getNumberOfPages();
+    for(let i=1;i<=n;i++){ doc.setPage(i); if(kind==="M"&&i===1) continue; doc.setDrawColor(222,218,232); doc.line(M,287,W-M,287); doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(...MUT);
+      doc.text(T(`Oriba Foods · ${titre} · ${perLabel(f.mois)} · ${scope}`),M,291); doc.text(`Page ${i} / ${n}`,W-M,291,{align:"right"}); } };
   const slug=s=>T(s).normalize("NFKD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"_").replace(/^_|_$/g,"");
-  doc.save(`${slug(titre)}_${slug(f.mois.replace(/^[SJ]/,""))}${f.zone!=="TOUTES"?"_"+slug(f.zone):""}${f.axe!=="TOUS"?"_"+slug(axeLabel(f.axe)):""}.pdf`);
+  const fname=`${slug(titre)}_${slug(f.mois.replace(/^[SJ]/,""))}${f.zone!=="TOUTES"?"_"+slug(f.zone):""}${f.axe!=="TOUS"?"_"+slug(axeLabel(f.axe)):""}.pdf`;
+
+  /* ================= RAPPORT JOURNALIER : l'essentiel de la journée ================= */
+  function daily(){
+    header(perLabel(f.mois).replace(/^./,c=>c.toUpperCase()));
+    const ag=uniq(F.map(x=>x.agent));
+    cards([["Fiches du jour",F.length,F.length?`${nT(F,"PRESENCE")} présence · ${nT(F,"CALEBASSE")+nT(F,"SONDAGE")} sondages · ${nT(F,"PRIX")} prix`:"aucune fiche"],
+      ["Boutiques / personnes",nb(ech(F)),"interrogées aujourd'hui"],["Marchés visités",new Set(F.map(x=>x.marche)).size,uniq(F.map(x=>x.axe).filter(Boolean)).length?`${uniq(F.map(x=>x.axe).filter(Boolean)).length} axe(s)`:""],
+      ["Agents sur le terrain",ag.length,ag.slice(0,3).join(", ")+(ag.length>3?"…":"")]]);
+    if(!F.length){ h1("Travail de la journée",20); para("Aucune fiche n'a été enregistrée ce jour pour cette sélection.",10,INK); }
+    else{
+      h1("Travail réalisé dans la journée",25);
+      table(["Agent","Marché / axe","Étude","Éch.","Nos produits","Concurrent en tête"],F.map(x=>{ const o=x.type==="PRIX"?{txt:`${(x.lignes||[]).length} produits relevés`,lead:"-"}:oursInFiche(x);
+        return [x.agent,`${x.marche}${x.axe&&x.axe!==x.marche?"\n"+axeLabel(x.axe):""}`,`${TYPES[x.type]||x.type}\n${segTxt(x.segment)}`,R(x.echantillon??"-"),o.txt,o.lead]; }),
+        {columnStyles:{0:{cellWidth:28},1:{cellWidth:34},2:{cellWidth:30},3:{cellWidth:11},5:{cellWidth:30}}});
+      const withData=OUR.filter(p=>F.some(x=>x.segment===p.seg&&x.type!=="PRIX"));
+      if(withData.length){ h1("Nos produits aujourd'hui",30);
+        table(["Produit","Présence en boutique","Sondage calebasse","Sondage consommateurs"],withData.map(p=>[p.nom,R(pctTxt(prodShare(L({seg:p.seg,type:"PRESENCE"}),p)),{fontStyle:"bold"}),R(pctTxt(prodShare(L({seg:p.seg,type:"CALEBASSE"}),p))),R(pctTxt(prodShare(L({seg:p.seg,type:"SONDAGE"}),p)))]));
+        para("Part = citations de la marque ÷ toutes les citations du segment (total = 100 %).",7.5); }
+    }
+    h1("À signaler",25);
+    const items=[];
+    alerts.slice(0,5).forEach(a=>items.push([`${a.marche} : ${a.ours} à ${pctTxt(a.ro)} face à ${a.comp} (${pctTxt(a.rc)}), écart de ${Math.round(a.gap*100)} points.`,RED]));
+    A.forEach(v=>items.push([`${v.marque} (${v.categorie.toLowerCase()}, impact ${v.impact.toLowerCase()})${v.marche?" à "+v.marche:""} : ${v.description}`,INK]));
+    F.filter(x=>(x.observations||"").trim()).forEach(x=>items.push([`${x.agent}, ${x.marche} : ${x.observations}`,INK]));
+    if(!items.length) para("Rien à signaler : aucune alerte, aucune action concurrente ni observation ce jour.",9,INK);
+    else items.forEach(i=>bullet(i[0],i[1]));
+  }
+
+  /* ================= RAPPORT HEBDOMADAIRE : les faits marquants de la semaine ================= */
+  function weekly(){
+    header(perLabel(f.mois));
+    const d=(a,b)=>delta(a,b);
+    cards([["Fiches",F.length,d(F.length,FP.length).txt,d(F.length,FP.length).col],["Boutiques / personnes",nb(ech(F)),d(ech(F),ech(FP)).txt,d(ech(F),ech(FP)).col],
+      ["Marchés",new Set(F.map(x=>x.marche)).size,d(new Set(F.map(x=>x.marche)).size,new Set(FP.map(x=>x.marche)).size).txt,d(new Set(F.map(x=>x.marche)).size,new Set(FP.map(x=>x.marche)).size).col],
+      ["Agents actifs",new Set(F.map(x=>x.agent)).size,""],["Actions concurrentes",A.length,d(A.length,AP.length).txt,d(A.length,AP.length).col]]);
+    h1("Nos produits cette semaine",40); prodTable(true);
+    // Faits marquants
+    const keys=[];
+    for(const seg of ["BOUILLON","MAYONNAISE"]){ const r=agg(L({seg,type:"PRESENCE"}),x=>x.marque).sort((a,b)=>b.rate-a.rate); if(!r.length) continue;
+      const o=r.filter(x=>isOurs(x.k)); keys.push(`${segTxt(seg)} : ${r[0].k} domine la présence (${pctTxt(r[0].rate)}). ${o.length?`Notre meilleur produit : ${o[0].k} (${pctTxt(o[0].rate)}, ${r.indexOf(o[0])+1}e).`:"Aucun de nos produits trouvé."}`); }
+    OUR.forEach(p=>{ const a=prodShare(L({seg:p.seg,type:"PRESENCE"}),p), b=prodShare(LP({seg:p.seg,type:"PRESENCE"}),p); if(a!=null&&b!=null&&Math.abs(a-b)>=.03) keys.push(`${p.nom} ${a>b?"progresse":"recule"} de ${Math.abs(Math.round((a-b)*100))} points par rapport à la semaine précédente.`); });
+    if(alerts.length) keys.push(`${alerts.length} alerte${alerts.length>1?"s":""} marché cette semaine (concurrent devant nous de 10 points ou plus).`);
+    if(keys.length){ h1("Faits marquants",25); keys.forEach(k=>bullet(k)); }
+    // Activité jour par jour
+    h1("Activité jour par jour",60);
+    const a0=f.mois.slice(1), J=["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
+    table(["Jour","Fiches","Présence","Sondages","Prix","Échant.","Agents","Marchés"],J.map((j,i)=>{ const dd=dAdd(a0,i), X=F.filter(x=>x.date===dd);
+      return [`${j} ${fmtDate(dd).slice(0,5)}`,R(X.length,{fontStyle:X.length?"bold":"normal"}),R(nT(X,"PRESENCE")),R(nT(X,"CALEBASSE")+nT(X,"SONDAGE")),R(nT(X,"PRIX")),R(nb(ech(X))),R(new Set(X.map(x=>x.agent)).size),R(new Set(X.map(x=>x.marche)).size)]; }));
+    // Classement présence en barres
+    h1("Classement de présence de la semaine",75);
+    const yS=y; const rb=agg(L({seg:"BOUILLON",type:"PRESENCE"}),x=>x.marque).filter(x=>x.score>0).sort((a,b)=>b.rate-a.rate);
+    const rm=agg(L({seg:"MAYONNAISE",type:"PRESENCE"}),x=>x.marque).filter(x=>x.score>0).sort((a,b)=>b.rate-a.rate);
+    const pc=r=>{ const p=round100(r.map(x=>x.score)); return r.map((x,i)=>({...x,pct:p[i]})).slice(0,10); };
+    const y1=barList(M,CW/2-4,"Bouillon",pc(rb),P); y=yS; const y2=barList(M+CW/2+4,CW/2-4,"Mayonnaise",pc(rm),G); y=Math.max(y1,y2)+2;
+    // Par axe
+    const FN=S.fiches.filter(x=>fiOK(x,{...f,zone:f.zone==="TOUTES"?"NIAMEY":f.zone}));
+    if((f.zone==="TOUTES"||f.zone==="NIAMEY")&&FN.length){ h1("Résultats par axe (Niamey)",40);
+      const axl=uniq(FN.map(x=>x.axe||"_SANS")).sort((a,b)=>(a==="_SANS")-(b==="_SANS")||a.localeCompare(b,"fr"));
+      table(["Axe","Fiches","Échant.","Nos produits bouillon","Nos produits mayonnaise"],axl.map(a=>{ const Fa=FN.filter(x=>(x.axe||"_SANS")===a), fz={...f,zone:"NIAMEY",axe:a};
+        const sb=lines({...fz,seg:"BOUILLON",type:"PRESENCE"}), sm=lines({...fz,seg:"MAYONNAISE",type:"PRESENCE"});
+        const s=r=>{ if(!r.length) return "-"; const x=shareBy(r,q=>isOurs(q.marque),()=>1)[0]; return pctTxt(x?x.rate:0); };
+        return [axeLabel(a),R(Fa.length),R(nb(ech(Fa))),R(s(sb),{fontStyle:"bold"}),R(s(sm),{fontStyle:"bold"})]; }));
+      para("Part de présence de l'ensemble de nos produits sur l'axe (études de présence de la semaine).",7.5); }
+    // Points d'attention
+    h1("Points d'attention",25);
+    const items=[];
+    alerts.slice(0,6).forEach(a=>items.push([`${fmtDate(a.date).slice(0,5)} · ${a.marche} : ${a.ours} à ${pctTxt(a.ro)} face à ${a.comp} (${pctTxt(a.rc)}), écart ${Math.round(a.gap*100)} pts.`,RED]));
+    if(alerts.length>6) items.push([`… et ${alerts.length-6} autre(s) alerte(s).`,MUT]);
+    A.forEach(v=>items.push([`${fmtDate(v.date).slice(0,5)} · ${v.marque} (${v.categorie.toLowerCase()})${v.marche?" à "+v.marche:""} : ${v.description}`,INK]));
+    const OB=F.filter(x=>(x.observations||"").trim()); const seen=new Set();
+    OB.forEach(x=>{ const k=norm(x.observations); if(seen.has(k)) return; seen.add(k); items.push([`${fmtDate(x.date).slice(0,5)} · ${x.marche} (${x.agent}) : ${x.observations}`,INK]); });
+    if(!items.length) para("Aucune alerte, action concurrente ni observation cette semaine.",9,INK); else items.slice(0,14).forEach(i=>bullet(i[0],i[1]));
+    // Agents
+    const ag=uniq(F.map(x=>x.agent));
+    h1("Activité des agents",22+7*Math.max(1,ag.length));
+    if(!ag.length) para("Aucune fiche cette semaine."); else table(["Agent","Fiches","Jours sur le terrain","Marchés","Échant. cumulé"],ag.map(a=>{ const X=F.filter(x=>x.agent===a); return [a,R(X.length,{fontStyle:"bold"}),R(new Set(X.map(x=>x.date)).size),R(new Set(X.map(x=>x.marche)).size),R(nb(ech(X)))]; }));
+  }
+
+  /* ================= RAPPORT MENSUEL : tout ce qui a été fait dans le mois ================= */
+  function monthly(){
+    // Page de garde
+    doc.setFillColor(...P); doc.rect(0,0,W,118,"F"); doc.setFillColor(...G); doc.rect(0,118,W,3,"F");
+    try{ const logo=document.querySelector(".logo img")?.src; if(logo){ doc.setFillColor(255,255,255); doc.roundedRect(M,16,52,34,3,3,"F"); doc.addImage(logo,"JPEG",M+2,18,48,30); } }catch(e){}
+    doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(30); doc.text(T("Rapport mensuel"),M,74);
+    doc.setFontSize(18); doc.setFont("helvetica","normal"); doc.text(T("Veille & Enquêtes"),M,85);
+    doc.setFont("helvetica","bold"); doc.setFontSize(20); doc.text(T(perLabel(f.mois)),M,101); doc.setFont("helvetica","normal"); doc.setFontSize(11); doc.text(T(scope),M,110);
+    y=132; doc.setTextColor(...INK);
+    cards([["Fiches",F.length,delta(F.length,FP.length).txt,delta(F.length,FP.length).col],["Boutiques / personnes",nb(ech(F)),delta(ech(F),ech(FP)).txt,delta(ech(F),ech(FP)).col],["Marchés",new Set(F.map(x=>x.marche)).size,""],["Agents",new Set(F.map(x=>x.agent)).size,""]]);
+    cards([["Études de présence",nT(F,"PRESENCE"),""],["Sondages",nT(F,"CALEBASSE")+nT(F,"SONDAGE"),`${nT(F,"CALEBASSE")} calebasse · ${nT(F,"SONDAGE")} consommateurs`],["Relevés de prix",nT(F,"PRIX"),""],["Actions concurrentes",A.length,""]]);
+    y+=4; doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(...P); doc.text("Sommaire",M,y); y+=6;
+    const som=["Synthèse du mois et points clés","Nos 5 produits","Évolution semaine par semaine","Classement des marques par étude (secteurs 3D)","Résultats par axe","Résultats par marché","Activité des agents","Alertes marché","Relevés de prix","Actions concurrentes","Observations terrain","Annexe : détail de toutes les fiches"];
+    doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(...INK); som.forEach((s,i)=>{ doc.text(T(`${i+1}.  ${s}`),M+2,y); y+=5.4; });
+    doc.setFontSize(8); doc.setTextColor(...MUT); doc.text(T(`Généré le ${new Date().toLocaleDateString("fr-FR")} par ${[S.user?.prenom,S.user?.nom].filter(Boolean).join(" ")||"-"} · Document interne Oriba Foods`),M,285);
+    doc.addPage(); y=16;
+
+    h1("1. Synthèse du mois");
+    const kp=[["Fiches collectées",F.length,FP.length],["Études de présence",nT(F,"PRESENCE"),nT(FP,"PRESENCE")],["Sondages calebasse",nT(F,"CALEBASSE"),nT(FP,"CALEBASSE")],["Sondages consommateurs",nT(F,"SONDAGE"),nT(FP,"SONDAGE")],["Relevés de prix",nT(F,"PRIX"),nT(FP,"PRIX")],
+      ["Boutiques visitées / personnes interrogées",ech(F),ech(FP)],["Marchés couverts",new Set(F.map(x=>x.marche)).size,new Set(FP.map(x=>x.marche)).size],["Axes couverts",new Set(F.filter(x=>x.axe).map(x=>x.axe)).size,new Set(FP.filter(x=>x.axe).map(x=>x.axe)).size],["Agents actifs",new Set(F.map(x=>x.agent)).size,new Set(FP.map(x=>x.agent)).size],["Actions concurrentes signalées",A.length,AP.length]];
+    table(["Indicateur","Ce mois",prevK?mLabel(prevK):"Mois précédent"],kp.map(r=>[r[0],R(nb(r[1]),{fontStyle:"bold"}),R(nb(r[2]),{textColor:MUT})]),{columnStyles:{0:{cellWidth:110}}});
+    const keys=[];
+    for(const seg of ["BOUILLON","MAYONNAISE"]){ const r=agg(L({seg,type:"PRESENCE"}),x=>x.marque).sort((a,b)=>b.rate-a.rate); if(!r.length) continue;
+      const o=r.filter(x=>isOurs(x.k)); keys.push(`${segTxt(seg)} : le leader de la présence est ${r[0].k} (${pctTxt(r[0].rate)}). ${o.length?`Notre meilleur produit est ${o[0].k} (${pctTxt(o[0].rate)}, ${r.indexOf(o[0])+1}e rang sur ${r.length}).`:"Aucun de nos produits n'a été trouvé."}`); }
+    if(alerts.length) keys.push(`${alerts.length} alerte${alerts.length>1?"s":""} : un concurrent devance nettement l'un de nos produits sur certains marchés (section 8).`);
+    if(keys.length){ h2("Points clés"); keys.forEach(k=>bullet(k)); }
+    if(!F.length) para("Aucune fiche n'a été enregistrée pour cette sélection.");
+
+    h1("2. Nos produits"); prodTable(true);
+    const prixP=OUR.map(p=>{ const pr=F.filter(x=>x.type==="PRIX"&&x.segment===p.seg).flatMap(x=>x.lignes||[]).filter(l=>p.test(norm(l.produit))&&+l.prixConso>0); return pr.length?`${p.nom} : ${fcfaTxt(avg(pr.map(l=>+l.prixConso)))}`:null; }).filter(Boolean);
+    if(prixP.length) para("Prix consommateur moyen relevé : "+prixP.join(" · "),8.5,INK);
+
+    h1("3. Évolution semaine par semaine",60);
+    const [d0,d1]=perRange(f.mois); const weeks=[]; for(let w=wKey(d0); w<=d1; w=dAdd(w,7)) weeks.push(w);
+    table(["Semaine","Fiches","Échant.",...OUR.map(p=>p.nom.replace(/^(Arôme|Mayonnaise) /,""))],weeks.map(w=>{ const k="S"+w, X=F.filter(x=>inPer(x.date,k));
+      return [perShort(k),R(X.length,{fontStyle:"bold"}),R(nb(ech(X))),...OUR.map(p=>R(pctTxt(prodShare(lines({...f,mois:f.mois,seg:p.seg,type:"PRESENCE"}).filter(r=>inPer(r.fi.date,k)),p))))]; }));
+    para("Part de présence de chacun de nos produits, semaine par semaine (jours du mois uniquement).",7.5);
+
+    space(100); h1("4. Classement des marques par étude");
+    let any=false;
+    for(const seg of ["BOUILLON","MAYONNAISE"]) for(const t of ["PRESENCE","CALEBASSE","SONDAGE"]){
+      const rows=L({seg,type:t}); if(!rows.length) continue; any=true;
+      const r=agg(rows,x=>x.marque).filter(x=>x.score>0).sort((a,b)=>b.score-a.score); const rp=round100(r.map(x=>x.score));
+      const nf=new Set(rows.map(x=>x.fi)).size, ne=[...new Set(rows.map(x=>x.fi))].reduce((s,x)=>s+(+x.echantillon||0),0);
+      space(80); h2(`${segTxt(seg)} · ${TYPES[t]} (${nf} fiche${nf>1?"s":""}, ${nb(ne)} ${t==="PRESENCE"?"boutiques":"personnes"})`);
+      let oi=0; const items=[...r].sort((a,b)=>isOurs(b.k)-isOurs(a.k)||b.score-a.score).map(x=>({label:x.k,value:x.score,color:brandColorPdf(x.k,isOurs(x.k)?oi++:0)}));
+      const col=new Map(items.map(i=>[i.label,i.color]));
+      const yTop=y; doc.addImage(pieImage(items),"PNG",M+CW-78,yTop,78,40.7);
+      doc.autoTable({startY:yTop,margin:{left:M,right:M+82,top:16,bottom:16},head:[["","Rang","Marque","Citations","Part"]],body:r.map((x,k)=>["",String(k+1),T(x.k),String(x.score),rp[k]+" %"]),theme:"grid",
+        styles:{...TS,fontSize:7.5,cellPadding:1.2},headStyles:{fillColor:seg==="MAYONNAISE"?G:P,textColor:255,fontSize:7.5},
+        columnStyles:{0:{cellWidth:4},1:{cellWidth:10,halign:"center"},3:{halign:"right"},4:{halign:"right",fontStyle:"bold"}},
+        didParseCell:d=>{ if(d.section==="body"&&isOurs(r[d.row.index].k)){ d.cell.styles.fontStyle="bold"; d.cell.styles.fillColor=[240,236,248]; } },
+        didDrawCell:d=>{ if(d.section==="body"&&d.column.index===0){ doc.setFillColor(...hexRgb(col.get(r[d.row.index].k)||"#999999")); doc.rect(d.cell.x+1,d.cell.y+1.2,2.4,d.cell.height-2.4,"F"); } }});
+      y=Math.max(doc.lastAutoTable.finalY,yTop+43)+6;
+    }
+    if(!any) para("Aucune étude de présence ni sondage dans le mois.");
+
+    const fN={...f,zone:f.zone==="TOUTES"?"NIAMEY":f.zone}, FN=S.fiches.filter(x=>fiOK(x,fN));
+    h1(`5. Résultats par axe (${fN.zone})`);
+    const axList=uniq(FN.map(x=>x.axe||"_SANS")).sort((a,b)=>(a==="_SANS")-(b==="_SANS")||a.localeCompare(b,"fr"));
+    if(!axList.length) para("Aucune fiche sur les axes ce mois-ci.");
+    else{ table(["Axe","Fiches","Marchés","Échant.",...OUR.map(p=>p.nom.replace(/^(Arôme|Mayonnaise) /,""))],axList.map(a=>{ const Fa=FN.filter(x=>(x.axe||"_SANS")===a);
+        return [axeLabel(a),R(Fa.length),R(new Set(Fa.map(x=>x.marche)).size),R(nb(ech(Fa))),...OUR.map(p=>R(pctTxt(prodShare(lines({...fN,axe:a,seg:p.seg,type:"PRESENCE"}),p))))]; }),{styles:{...TS,fontSize:7.5,cellPadding:1.4}});
+      para("Parts de présence (études de présence) de chacun de nos produits sur l'axe.",7.5); }
+
+    h1("6. Résultats par marché");
+    const mk=uniq(F.filter(x=>x.type!=="PRIX").map(x=>x.marche));
+    if(!mk.length) para("Aucune fiche d'enquête dans le mois.");
+    else table(["Marché","Axe","Fiches","Échant.","Nos produits bouillon","Nos produits mayonnaise","Concurrent en tête"],mk.map(m=>{
+      const Fm=F.filter(x=>x.marche===m&&x.type!=="PRIX"); const lb=L({seg:"BOUILLON"}).filter(r=>r.fi.marche===m), lm=L({seg:"MAYONNAISE"}).filter(r=>r.fi.marche===m);
+      const s=r=>{ if(!r.length) return "-"; const x=shareBy(r,q=>isOurs(q.marque),()=>1)[0]; return pctTxt(x?x.rate:0); };
+      const lead=agg(L({}).filter(r=>r.fi.marche===m&&!isOurs(r.marque)),r=>brandOf(r.marque)).sort((a,b)=>b.score-a.score)[0];
+      return [m,uniq(Fm.map(x=>x.axe).filter(Boolean)).map(axeLabel).join(", ")||"-",R(Fm.length),R(nb(ech(Fm))),R(s(lb)),R(s(lm)),lead?lead.k:"-"]; }),{styles:{...TS,fontSize:7.5,cellPadding:1.4}});
+
+    h1("7. Activité des agents");
+    const ag=uniq(F.map(x=>x.agent));
+    if(!ag.length) para("Aucune fiche dans le mois.");
+    else table(["Agent","Fiches","Présence","Calebasse","Sondage conso.","Prix","Jours terrain","Marchés","Échant. cumulé"],ag.map(a=>{ const X=F.filter(x=>x.agent===a); return [a,...[X.length,nT(X,"PRESENCE"),nT(X,"CALEBASSE"),nT(X,"SONDAGE"),nT(X,"PRIX"),new Set(X.map(x=>x.date)).size,new Set(X.map(x=>x.marche)).size].map(v=>R(v)),R(nb(ech(X)))]; }));
+
+    h1("8. Alertes marché");
+    if(!alerts.length) para("Aucune alerte : sur les marchés visités, aucun concurrent ne devance l'un de nos produits de 10 points ou plus.");
+    else table(["Marché","Date","Notre produit","Part","Concurrent en tête","Part","Écart"],alerts.map(a=>[a.marche,fmtDate(a.date),a.ours,R(pctTxt(a.ro)),a.comp,R(pctTxt(a.rc)),R(Math.round(a.gap*100)+" pts",{fontStyle:"bold",textColor:RED})]));
+
+    h1("9. Relevés de prix");
+    const PR=F.filter(x=>x.type==="PRIX");
+    if(!PR.length) para("Aucun relevé de prix dans le mois.");
+    else{ const g=new Map(); for(const x of PR) for(const l of x.lignes||[]){ const k=x.segment+"|"+norm(l.produit); if(!g.has(k)) g.set(k,[]); g.get(k).push(l); }
+      const rows=[...g].map(([k,a])=>({seg:k.split("|")[0],p:k.split("|")[1],n:a.length,g:avg(a.map(l=>+l.prixGros||null)),d:avg(a.map(l=>+l.prixDemiGros||null)),r:avg(a.map(l=>+l.prixDetail||null)),c:avg(a.map(l=>+l.prixConso||null))})).sort((a,b)=>a.seg.localeCompare(b.seg)||isOurs(b.p)-isOurs(a.p)||(b.c||0)-(a.c||0));
+      table(["Segment","Produit","Relevés","Grossiste","½ gros","Détaillant","Prix conso."],rows.map(x=>[segTxt(x.seg),{content:x.p,styles:isOurs(x.p)?{fontStyle:"bold"}:{}},R(x.n),R(fcfaTxt(x.g)),R(fcfaTxt(x.d)),R(fcfaTxt(x.r)),R(fcfaTxt(x.c),{fontStyle:"bold"})]));
+      para("Moyennes des relevés du mois. Grossiste, ½ gros et détaillant au carton ; prix consommateur à l'unité de vente.",7.5); }
+
+    h1("10. Actions concurrentes signalées");
+    if(!A.length) para("Aucune action concurrente signalée dans le mois.");
+    else table(["Date","Marché","Marque","Catégorie","Impact","Description"],A.map(v=>[fmtDate(v.date),v.marche||"-",v.marque,v.categorie,v.impact,v.description]),{columnStyles:{5:{cellWidth:70}}});
+
+    h1("11. Observations terrain");
+    const OB=F.filter(x=>(x.observations||"").trim());
+    if(!OB.length) para("Aucune observation saisie par les agents dans le mois.");
+    else table(["Date","Marché","Agent","Étude","Observation"],OB.map(x=>[fmtDate(x.date),x.marche,x.agent,TYPES[x.type]||x.type,x.observations]),{columnStyles:{4:{cellWidth:80}}});
+
+    if(F.length){ doc.addPage(); y=16; h1("Annexe · Détail de toutes les fiches du mois",20);
+      table(["Date","Étude","Marché / axe","Agent","Éch.","Résultats (citations · part)"],F.map(x=>{
+        let res; if(x.type==="PRIX") res=(x.lignes||[]).map(l=>`${norm(l.produit)} : ${fcfaTxt(+l.prixConso||null)}`).join(" ; ");
+        else { const Ls=(x.lignes||[]).filter(l=>+l.score>0).slice().sort((a,b)=>b.score-a.score); const rp=round100(Ls.map(l=>+l.score)); res=Ls.map((l,k)=>`${l.marque} ${l.score} (${rp[k]} %)`).join(" ; ")||"aucune citation"; }
+        return [fmtDate(x.date),`${TYPES[x.type]||x.type}\n${segTxt(x.segment)}`,`${x.marche}${x.axe?"\n"+axeLabel(x.axe):""}`,x.agent,R(x.echantillon??"-"),res]; }),
+        {styles:{...TS,fontSize:7,cellPadding:1.3},columnStyles:{0:{cellWidth:17},1:{cellWidth:26},2:{cellWidth:30},3:{cellWidth:24},4:{cellWidth:10}}}); }
+  }
+
+  if(kind==="J") daily(); else if(kind==="S") weekly(); else monthly();
+  footer(); doc.save(fname);
 }
 function reportAlerts(F){
   const out=[];
