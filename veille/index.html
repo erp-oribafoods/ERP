@@ -161,6 +161,9 @@ tbody tr:hover td{background:var(--surface-2)}
 @media (max-width:820px){.formgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:440px){.formgrid{grid-template-columns:minmax(0,1fr)}}
 .typepick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.typepick.rep3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:560px){.typepick.rep3{grid-template-columns:1fr}.typepick.rep3 button span{display:inline}}
+#axeTable tr[data-axe]{cursor:pointer}
 @media (max-width:820px){.typepick{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .typepick button{font:inherit;text-align:left;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:12px;cursor:pointer;color:var(--ink);display:flex;flex-direction:column;gap:2px}
 .typepick button b{font-family:var(--f-display);font-size:1.05rem}
@@ -225,6 +228,7 @@ details.fiche > summary{cursor:pointer}
     <a href="#presence" data-v="presence">Présence &amp; sondages</a>
     <a href="#prix" data-v="prix">Veille prix</a>
     <a href="#concurrence" data-v="concurrence">Veille concurrentielle</a>
+    <a href="#rapports" data-v="rapports">Rapports PDF</a>
     <a href="#base" data-v="base">Base de données</a>
     <a href="#utilisateurs" data-v="utilisateurs" id="tabUsers" hidden>Utilisateurs</a>
   </div>
@@ -258,9 +262,15 @@ details.fiche > summary{cursor:pointer}
     <div><h2>Tableau de bord</h2><p>Situation de nos 5 produits sur le marché, mise à jour à chaque fiche enregistrée par les agents.</p></div>
     <div class="filters">
       <div class="field"><label for="fZone">Zone</label><select id="fZone"></select></div>
+      <div class="field" hidden><label for="fAxe">Axe</label><div style="display:flex;gap:6px"><select id="fAxe"></select><button class="btn ghost sm" type="button" id="fAxeAdd" title="Ajouter un axe">+ Axe</button></div></div>
       <div class="field"><label for="fMois">Période</label><select id="fMois"></select></div>
+      <button class="btn ghost" type="button" id="fReport" style="align-self:flex-end">Rapport PDF</button>
     </div>
   </div>
+  <form id="axeAddBox" class="card" hidden novalidate style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+    <div class="field" style="flex:1;min-width:220px"><label for="axeAddIn">Nouvel axe (Niamey)</label><input id="axeAddIn" placeholder="ex. ROUTE FILINGUE" autocomplete="off"></div>
+    <button class="btn" type="submit">Ajouter l'axe</button><button class="btn ghost" type="button" id="axeAddCancel">Annuler</button><span class="note" id="axeAddMsg"></span>
+  </form>
   <div class="grid g-kpi" id="kpis"></div>
   <div>
     <h3 style="font-size:1.2rem;margin-bottom:10px">Nos produits</h3>
@@ -270,6 +280,7 @@ details.fiche > summary{cursor:pointer}
     <div class="card"><h3>Présence – segment bouillon <span class="chip PRESENCE">Tablette</span></h3><p class="sub">Part de chaque marque dans les citations (total = 100 %). Nos produits en violet.</p><div class="chartbox"><canvas id="cDashB"></canvas></div></div>
     <div class="card"><h3>Présence – segment mayonnaise <span class="chip PRESENCE">Tous formats</span></h3><p class="sub">Part de chaque marque dans les citations (total = 100 %). Nos produits en vert.</p><div class="chartbox"><canvas id="cDashM"></canvas></div></div>
   </div>
+  <div class="card" id="axeCard" hidden><h3>Résultats par axe · Niamey <span class="chip PRESENCE">Présence</span></h3><p class="sub">Part de présence de chacun de nos produits sur chaque axe, pour la période choisie (total de chaque segment = 100 %). Cliquez sur un axe pour filtrer tout le tableau de bord.</p><div class="tablewrap"><table id="axeTable"></table></div></div>
   <div class="card"><h3>Part de nos produits <span class="chip PRESENCE">secteurs 3D</span></h3><p class="sub">Part de chaque produit face à toutes les autres marques de son segment (total = 100 %).</p><div class="g-5" id="ourPies"></div></div>
   <div class="grid g-2">
     <div class="card"><h3>Part de visibilité – bouillon <span class="chip PRESENCE">secteurs 3D</span></h3><p class="sub">Part de chaque marque dans l'ensemble des citations.</p><div class="pie3d"><canvas id="p3B" width="600" height="340"></canvas><div class="plegend" id="p3BL"></div></div></div>
@@ -296,6 +307,7 @@ details.fiche > summary{cursor:pointer}
       <div class="field"><label id="sSegLbl">Segment</label><select id="sSeg" hidden aria-hidden="true" tabindex="-1"><option value="BOUILLON">Bouillon</option><option value="MAYONNAISE">Mayonnaise</option></select>
         <div class="segpick" role="group" aria-labelledby="sSegLbl"><button type="button" data-seg="BOUILLON" aria-pressed="true">Bouillon</button><button type="button" data-seg="MAYONNAISE" aria-pressed="false">Mayonnaise</button></div></div>
       <div class="field"><label for="sZone">Zone / ville</label><input id="sZone" list="dlZones" required placeholder="NIAMEY"></div>
+      <div class="field" id="axeField" hidden><label for="sAxe">Axe</label><select id="sAxe"></select><input id="sAxeNew" hidden placeholder="Nom du nouvel axe" autocomplete="off" style="margin-top:6px"></div>
       <div class="field"><label for="sMarche">Marché</label><input id="sMarche" list="dlMarches" required placeholder="WADATA"></div>
       <div class="field"><label for="sDate">Date</label><input id="sDate" type="date" required></div>
       <div class="field"><label for="sAgent">Agent</label><input id="sAgent" list="dlAgents" required placeholder="Nom de l'agent"></div>
@@ -325,6 +337,7 @@ details.fiche > summary{cursor:pointer}
       <div class="field"><label for="pSeg">Segment</label><select id="pSeg"><option value="BOUILLON">Bouillon</option><option value="MAYONNAISE">Mayonnaise</option></select></div>
       <div class="field"><label for="pType">Étude</label><select id="pType"></select></div>
       <div class="field"><label for="pZone">Zone</label><select id="pZone"></select></div>
+      <div class="field" hidden><label for="pAxe">Axe</label><select id="pAxe"></select></div>
       <div class="field"><label for="pMois">Période</label><select id="pMois"></select></div>
       <div class="field"><label for="pFmt">Format</label><select id="pFmt"></select></div>
     </div>
@@ -382,6 +395,40 @@ details.fiche > summary{cursor:pointer}
       <div class="formactions" style="margin-top:10px"><span class="note" id="vMsg"></span><button class="btn" type="submit">Enregistrer</button></div>
     </form>
   </div>
+</div></section>
+
+<!-- ============ RAPPORTS ============ -->
+<section class="view" id="v-rapports" hidden><div class="wrap">
+  <div class="viewhead"><div><h2>Rapports PDF</h2><p>Rapport journalier, hebdomadaire ou mensuel : toutes les données de la période dans un PDF prêt à imprimer ou à envoyer.</p></div></div>
+  <form class="card" id="repForm" novalidate>
+    <div class="typepick rep3" id="repKind">
+      <button type="button" data-k="J" aria-pressed="true"><b>Journalier</b><span>Les fiches d'une journée</span></button>
+      <button type="button" data-k="S" aria-pressed="false"><b>Hebdomadaire</b><span>Du lundi au dimanche</span></button>
+      <button type="button" data-k="M" aria-pressed="false"><b>Mensuel</b><span>Le mois complet</span></button>
+    </div>
+    <div class="formgrid" style="margin-top:14px">
+      <div class="field" id="repDayF"><label for="repDay">Jour</label><input type="date" id="repDay"></div>
+      <div class="field" id="repWeekF" hidden><label for="repWeek">Semaine</label><select id="repWeek"></select></div>
+      <div class="field" id="repMonthF" hidden><label for="repMonth">Mois</label><select id="repMonth"></select></div>
+      <div class="field"><label for="repZone">Zone</label><select id="repZone"></select></div>
+      <div class="field" id="repAxeF" hidden><label for="repAxe">Axe</label><select id="repAxe"></select></div>
+    </div>
+    <div id="repPreview"></div>
+    <div class="formactions" style="margin-top:14px"><span class="note" id="repMsg"></span><button class="btn green" type="submit" id="repBtn">Télécharger le rapport PDF</button></div>
+  </form>
+  <div class="card"><h3>Contenu du rapport</h3>
+    <ol class="sub" style="margin:8px 0 0 18px;line-height:1.7">
+      <li>Synthèse : fiches par étude, échantillons, marchés, axes, agents, comparaison avec la période précédente, points clés</li>
+      <li>Nos 5 produits : part de présence, évolution, rang, sondages calebasse et consommateurs, prix consommateur</li>
+      <li>Classement de toutes les marques pour chaque étude et chaque segment, avec secteurs 3D</li>
+      <li>Résultats par axe de Niamey</li>
+      <li>Résultats par marché</li>
+      <li>Activité de chaque agent</li>
+      <li>Alertes marché (concurrent qui nous devance de 10 points ou plus)</li>
+      <li>Relevés de prix</li>
+      <li>Actions concurrentes signalées</li>
+      <li>Observations terrain, puis en annexe le détail de chaque fiche</li>
+    </ol></div>
 </div></section>
 
 <!-- ============ BASE ============ -->
@@ -456,7 +503,7 @@ const VEILLE_CATS = ["Promotion / bonus","Nouveau produit","Changement de prix",
 const MOIS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 
 /* ---------- État ---------- */
-const S = {fiches:[], veille:[], loaded:false, db:null, user:null, canWrite:true, canEdit:false, uid:null};
+const S = {fiches:[], veille:[], axes:[], loaded:false, db:null, user:null, canWrite:true, canEdit:false, uid:null};
 const $ = id => document.getElementById(id);
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const pct = (v,d=0) => v==null||isNaN(v) ? "–" : (v*100).toFixed(d).replace(".",",")+" %";
@@ -477,8 +524,7 @@ function lines(f={}){
     if(fi.type==="PRIX") continue;
     if(f.seg && fi.segment!==f.seg) continue;
     if(f.type && fi.type!==f.type) continue;
-    if(f.zone && f.zone!=="TOUTES" && fi.zone!==f.zone) continue;
-    if(f.mois && f.mois!=="TOUS" && mKey(fi.date)!==f.mois) continue;
+    if(!fiOK(fi,f)) continue;
     const ech=+fi.echantillon||0; if(!ech) continue;
     for(const l of fi.lignes||[]){
       if(f.fmt && f.fmt!=="TOUS" && (l.format||"")!==f.fmt) continue;
@@ -518,6 +564,49 @@ function allBrands(seg){ return uniq(DEF_BRANDS[seg].concat(S.fiches.filter(f=>f
 function fillSelect(el, opts, keep=true){
   const cur=el.value; el.innerHTML=opts.map(o=>`<option value="${esc(o[0])}">${esc(o[1])}</option>`).join("");
   if(keep && opts.some(o=>o[0]===cur)) el.value=cur;
+}
+
+/* ---------- Périodes : jour, semaine, mois ---------- */
+const dAdd=(d,n)=>{ const t=new Date(d+"T12:00:00Z"); t.setUTCDate(t.getUTCDate()+n); return t.toISOString().slice(0,10); };
+const wKey=d=>{ if(!d) return ""; const t=new Date(d+"T12:00:00Z"); return dAdd(d,-((t.getUTCDay()+6)%7)); }; /* lundi de la semaine */
+const isoWeek=d=>{ const th=new Date(dAdd(wKey(d),3)+"T12:00:00Z"); const j1=Date.UTC(th.getUTCFullYear(),0,1,12); return 1+Math.floor((th-j1)/864e5/7); };
+const MOIS_C=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+const pKind=k=>!k||k==="TOUS"?"T":k[0]==="S"?"S":k[0]==="J"?"J":"M";
+function inPer(d,k){ const t=pKind(k); if(t==="T") return true; if(!d) return false; if(t==="S") return wKey(d)===k.slice(1); if(t==="J") return d===k.slice(1); return mKey(d)===k; }
+function perRange(k){ const t=pKind(k); if(t==="S"){ const a=k.slice(1); return [a,dAdd(a,6)]; } if(t==="J") return [k.slice(1),k.slice(1)]; if(t==="M"){ const [y,m]=k.split("-").map(Number); return [k+"-01",new Date(Date.UTC(y,m,0)).toISOString().slice(0,10)]; } return [null,null]; }
+function perLabel(k){ const t=pKind(k); if(t==="T") return "Toute la période"; if(t==="S"){ const a=k.slice(1); return `Semaine ${isoWeek(a)} · du ${fmtDate(a)} au ${fmtDate(dAdd(a,6))}`; } if(t==="J"){ const d=k.slice(1); return new Date(d+"T12:00:00Z").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric",timeZone:"UTC"}); } return mLabel(k); }
+function perShort(k){ const t=pKind(k); if(t==="S"){ const a=k.slice(1), b=dAdd(a,6); return `Sem. ${isoWeek(a)} · ${+a.slice(8)}${a.slice(5,7)===b.slice(5,7)?"":" "+MOIS_C[+a.slice(5,7)-1]}–${+b.slice(8)} ${MOIS_C[+b.slice(5,7)-1]} ${b.slice(0,4)}`; } if(t==="J") return fmtDate(k.slice(1)); return perLabel(k); }
+function perPrev(k){ const t=pKind(k); if(t==="S") return "S"+dAdd(k.slice(1),-7); if(t==="J") return "J"+dAdd(k.slice(1),-1); if(t==="M"){ let [y,m]=k.split("-").map(Number); m--; if(!m){ m=12; y--; } return `${y}-${String(m).padStart(2,"0")}`; } return null; }
+function fillPeriod(el){
+  const cur=el.value, ds=S.fiches.map(f=>f.date).filter(Boolean);
+  const ms=uniq(ds.map(mKey)).reverse(), ws=uniq(ds.map(wKey)).reverse();
+  el.innerHTML=`<option value="TOUS">Toute la période</option>`+
+    (ms.length?`<optgroup label="Par mois">${ms.map(m=>`<option value="${m}">${esc(mLabel(m))}</option>`).join("")}</optgroup>`:"")+
+    (ws.length?`<optgroup label="Par semaine">${ws.map(w=>`<option value="S${w}">${esc(perShort("S"+w))}</option>`).join("")}</optgroup>`:"");
+  if([...el.options].some(o=>o.value===cur)) el.value=cur;
+}
+
+/* ---------- Axes (Niamey et autres villes) ---------- */
+function axesOf(zone){ const z=norm(zone); const seen=new Set(), out=[];
+  for(const a of S.axes.filter(a=>a.zone===z).map(a=>a.nom).concat(uniq(S.fiches.filter(f=>f.zone===z&&f.axe).map(f=>f.axe)))) if(!seen.has(a)){ seen.add(a); out.push(a); }
+  return out; }
+const axeLabel=a=>a==="_SANS"?"Axe non précisé":a==="TOUS"?"Tous les axes":String(a||"").replace(/^AXE\s+/,"Axe ");
+function fillAxe(el,zone){
+  const z=norm(zone), list=axesOf(z), field=el.closest(".field");
+  const show=z==="NIAMEY"||list.length>0; if(field) field.hidden=!show;
+  const sans=S.fiches.some(f=>f.zone===z&&!f.axe);
+  fillSelect(el,[["TOUS","Tous les axes"]].concat(list.map(a=>[a,axeLabel(a)])).concat(sans?[["_SANS","Axe non précisé"]]:[]));
+  if(!show) el.value="TOUS";
+}
+function fiOK(fi,f){
+  if(f.zone&&f.zone!=="TOUTES"&&fi.zone!==f.zone) return false;
+  if(f.axe&&f.axe!=="TOUS"&&(fi.axe||"_SANS")!==f.axe) return false;
+  if(f.mois&&f.mois!=="TOUS"&&!inPer(fi.date,f.mois)) return false;
+  return true;
+}
+async function addAxe(nom,zone="NIAMEY"){
+  nom=norm(nom); if(!nom) throw new Error("Indiquez le nom de l'axe.");
+  const r=await api("axe.add",{zone,nom}); await reload(); toast("Axe ajouté : "+axeLabel(r.axe.nom)); return r.axe.nom;
 }
 
 /* ---------- Charts ---------- */
@@ -572,15 +661,18 @@ function shareItems(rows){ const t=agg(rows,r=>r.marque).filter(r=>r.score>0).so
 /* ---------- Vue : Tableau de bord ---------- */
 function renderDashboard(){
   const zone=$("fZone").value||"TOUTES", mois=$("fMois").value||"TOUS";
-  const F=S.fiches.filter(f=>(zone==="TOUTES"||f.zone===zone)&&(mois==="TOUS"||mKey(f.date)===mois));
+  fillAxe($("fAxe"),zone); $("fAxeAdd").hidden=!S.canWrite;
+  const axe=$("fAxe").closest(".field").hidden?"TOUS":($("fAxe").value||"TOUS");
+  const FF={zone,axe,mois};
+  const F=S.fiches.filter(f=>fiOK(f,FF));
   const pres=F.filter(f=>f.type!=="PRIX");
   const terr=S.fiches.filter(f=>f.source!=="import");
   const last=terr.reduce((a,f)=>!a||String(f.createdAt)>String(a.createdAt)?f:a,null);
   const lastVis=S.fiches.reduce((a,f)=>!a||String(f.date)>String(a.date)?f:a,null);
   const k=[
-    ["Fiches collectées",F.length,`${F.filter(f=>f.type==="PRIX").length} relevés de prix`],
+    ["Fiches collectées",F.length,(n=>`${n} relevé${n>1?"s":""} de prix`)(F.filter(f=>f.type==="PRIX").length)],
     ["Points de vente / personnes",pres.reduce((s,f)=>s+(+f.echantillon||0),0).toLocaleString("fr-FR"),"cumul des échantillons"],
-    ["Marchés couverts",new Set(F.map(f=>f.marche)).size,`${new Set(F.map(f=>f.zone)).size} zones`],
+    ["Marchés couverts",new Set(F.map(f=>f.marche)).size,axe!=="TOUS"?axeLabel(axe):zone==="NIAMEY"?`${new Set(F.filter(f=>f.axe).map(f=>f.axe)).size} axes`:`${new Set(F.map(f=>f.zone)).size} zones`],
     ["Agents actifs",new Set(F.map(f=>f.agent)).size,"sur la période"],
     last?["Dernière remontée",since(last.createdAt),`${esc(last.marche)} · ${esc(last.agent)}`]
         :["Dernière visite",lastVis?fmtDate(lastVis.date):"–",lastVis?`${esc(lastVis.marche)} · ${esc(lastVis.agent)} (import)`:"aucune fiche"],
@@ -589,13 +681,14 @@ function renderDashboard(){
 
   // Cartes produits
   $("prodCards").innerHTML=OUR.map(p=>{
-    const byM=shareBy(lines({seg:p.seg,type:"PRESENCE",zone}),r=>p.test(r.marque),r=>r.mois).sort((a,b)=>a.k.localeCompare(b.k));
+    const wk=pKind(mois)==="S", kf=r=>wk?"S"+wKey(r.fi.date):r.mois;
+    const byM=shareBy(lines({seg:p.seg,type:"PRESENCE",zone,axe}),r=>p.test(r.marque),kf).sort((a,b)=>a.k.localeCompare(b.k));
     const months = mois==="TOUS" ? byM : byM.filter(x=>x.k<=mois);
     const cur=months[months.length-1], prev=months[months.length-2];
     let rank="–", nb=0;
-    if(cur){ const r=agg(lines({seg:p.seg,type:"PRESENCE",zone,mois:cur.k}),x=>brandOf(x.marque)).sort((a,b)=>b.rate-a.rate); nb=r.length; const i=r.findIndex(x=>p.test(x.k)); rank=i>=0?(i+1)+"<sup>e</sup>/"+nb:"–"; }
-    const cal=shareBy(lines({seg:p.seg,type:"CALEBASSE",zone,mois}),r=>p.test(r.marque),()=>1)[0];
-    const sond=shareBy(lines({seg:p.seg,type:"SONDAGE",zone,mois}),r=>p.test(r.marque),()=>1)[0];
+    if(cur){ const r=agg(lines({seg:p.seg,type:"PRESENCE",zone,axe,mois:cur.k}),x=>brandOf(x.marque)).sort((a,b)=>b.rate-a.rate); nb=r.length; const i=r.findIndex(x=>p.test(x.k)); rank=i>=0?(i+1)+"<sup>e</sup>/"+nb:"–"; }
+    const cal=shareBy(lines({seg:p.seg,type:"CALEBASSE",zone,axe,mois}),r=>p.test(r.marque),()=>1)[0];
+    const sond=shareBy(lines({seg:p.seg,type:"SONDAGE",zone,axe,mois}),r=>p.test(r.marque),()=>1)[0];
     const prix=priceRows({seg:p.seg}).filter(r=>p.test(r.produit)&&r.prixConso);
     const pc=prix.length?prix.reduce((s,r)=>s+r.prixConso,0)/prix.length:null;
     let d="";
@@ -604,7 +697,7 @@ function renderDashboard(){
       <div class="seg">${p.seg==="BOUILLON"?"Arôme bouillon":"Mayonnaise"}</div>
       <div class="name">${p.nom}</div>
       <div class="big"><b class="num">${cur?pct(cur.rate):"–"}</b>${d}</div>
-      <div class="note">${cur?"part de présence · "+mLabel(cur.k):"pas encore d'étude de présence"}</div>
+      <div class="note">${cur?"part de présence · "+esc(perShort(cur.k)):"pas encore d'étude de présence"}</div>
       ${spark(months.map(x=>x.rate), p.seg==="MAYONNAISE"?"--leaf":"--purple")}
       <dl><dt>Rang segment</dt><dd class="num">${rank}</dd>
       <dt>Sondage calebasse</dt><dd class="num">${cal?pct(cal.rate):"–"}</dd>
@@ -612,17 +705,18 @@ function renderDashboard(){
       <dt>Prix conso. moyen</dt><dd class="num">${fcfa(pc)}</dd></dl></div>`;
   }).join("");
 
-  rankChart("cDashB", agg(lines({seg:"BOUILLON",type:"PRESENCE",zone,mois}),r=>r.marque).sort((a,b)=>b.rate-a.rate).slice(0,13), tok("--purple"));
-  rankChart("cDashM", agg(lines({seg:"MAYONNAISE",type:"PRESENCE",zone,mois}),r=>r.marque).sort((a,b)=>b.rate-a.rate).slice(0,14), tok("--leaf"));
-  pie3d($("p3B"),shareItems(lines({seg:"BOUILLON",type:"PRESENCE",zone,mois})),$("p3BL"));
-  pie3d($("p3M"),shareItems(lines({seg:"MAYONNAISE",type:"PRESENCE",zone,mois})),$("p3ML"));
+  rankChart("cDashB", agg(lines({seg:"BOUILLON",type:"PRESENCE",zone,axe,mois}),r=>r.marque).sort((a,b)=>b.rate-a.rate).slice(0,13), tok("--purple"));
+  rankChart("cDashM", agg(lines({seg:"MAYONNAISE",type:"PRESENCE",zone,axe,mois}),r=>r.marque).sort((a,b)=>b.rate-a.rate).slice(0,14), tok("--leaf"));
+  pie3d($("p3B"),shareItems(lines({seg:"BOUILLON",type:"PRESENCE",zone,axe,mois})),$("p3BL"));
+  pie3d($("p3M"),shareItems(lines({seg:"MAYONNAISE",type:"PRESENCE",zone,axe,mois})),$("p3ML"));
+  renderAxeTable(zone,mois,axe);
   $("ourPies").innerHTML=OUR.map(p=>`<div class="pie3d"><div class="pt">${p.nom}</div><canvas id="op_${p.id}" width="320" height="200"></canvas><div class="plegend" id="opl_${p.id}"></div></div>`).join("");
-  OUR.forEach(p=>{ const all=lines({seg:p.seg,type:"PRESENCE",zone,mois});
+  OUR.forEach(p=>{ const all=lines({seg:p.seg,type:"PRESENCE",zone,axe,mois});
     const sc=all.filter(r=>p.test(r.marque)).reduce((a,r)=>a+r.score,0), tt=all.reduce((a,r)=>a+r.score,0);
     pie3d($("op_"+p.id),tt?[{label:p.nom.replace(/^(Arôme|Mayonnaise) /,""),value:sc,color:p.seg==="MAYONNAISE"?tok("--leaf"):tok("--purple")},{label:"Autres marques",value:Math.max(0,tt-sc),color:"#d9d6e3"}]:[],$("opl_"+p.id),{small:true}); });
 
   // Alertes
-  const al=computeAlerts(zone);
+  const al=computeAlerts(zone,axe,mois);
   $("alertCount").textContent=al.items.length;
   $("alertCount").className="chip "+(al.items.some(a=>a.sev==="crit")?"crit":al.items.length?"warn":"good");
   $("alerts").innerHTML = (al.items.slice(0,9).map(a=>`<li><span class="sev ${a.sev}"></span><div class="body"><div><b>${esc(a.title)}</b></div><div class="meta">${a.meta}</div></div></li>`).join("")
@@ -634,6 +728,17 @@ function renderDashboard(){
   $("feed").innerHTML=feed.map(f=>`<li><span class="sev ${f.source==="import"?"":"good"}"></span><div class="body"><div><span class="chip ${f.type}">${TYPES[f.type]||f.type}</span> <b>${esc(f.marche)}</b> · ${esc(f.segment.toLowerCase())}</div><div class="meta">${esc(f.agent)} · visite du ${fmtDate(f.date)} · ${f.source==="import"?"import Excel":since(f.createdAt)}</div></div></li>`).join("")
     || `<li><div class="empty" style="width:100%"><b>Aucune fiche</b>Les fiches apparaîtront ici dès qu'un agent en enregistre une.</div></li>`;
 }
+function renderAxeTable(zone,mois,axeSel){
+  const card=$("axeCard"); const z=zone==="TOUTES"?"NIAMEY":zone;
+  const FN=S.fiches.filter(f=>fiOK(f,{zone:z,mois}));
+  const list=axesOf(z).concat(FN.some(f=>!f.axe)?["_SANS"]:[]);
+  card.hidden=!(z==="NIAMEY"&&(zone==="NIAMEY"||zone==="TOUTES")) || !list.length;
+  if(card.hidden) return;
+  const head=`<thead><tr><th>Axe</th><th class="r">Fiches</th><th class="r">Marchés</th><th class="r">Échant.</th>${OUR.map(p=>`<th class="r">${esc(p.nom.replace(/^(Arôme|Mayonnaise) /,""))}</th>`).join("")}</tr></thead>`;
+  $("axeTable").innerHTML=head+"<tbody>"+list.map(a=>{ const Fa=FN.filter(f=>(f.axe||"_SANS")===a);
+    const cells=OUR.map(p=>{ const rows=lines({zone:z,axe:a,mois,seg:p.seg,type:"PRESENCE"}); if(!rows.length) return `<td class="r num" style="color:var(--muted)">–</td>`; const s=shareBy(rows,r=>p.test(r.marque),()=>1)[0]; return `<td class="r num"><b>${pct(s?s.rate:0)}</b></td>`; }).join("");
+    return `<tr data-axe="${esc(a)}" class="${a===axeSel?"ours":""}"><td><b>${esc(axeLabel(a))}</b></td><td class="r num">${Fa.length}</td><td class="r num">${new Set(Fa.map(f=>f.marche)).size}</td><td class="r num">${Fa.filter(f=>f.type!=="PRIX").reduce((s,f)=>s+(+f.echantillon||0),0).toLocaleString("fr-FR")}</td>${cells}</tr>`; }).join("")+"</tbody>";
+}
 function spark(vals,color){
   if(vals.length<2) return `<svg class="spark" viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true"></svg>`;
   const w=100,h=36,p=3, mx=Math.max(...vals,.01);
@@ -642,9 +747,9 @@ function spark(vals,color){
   const c=`var(${color})`, e=pts[pts.length-1];
   return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><path d="${d} L${e[0]} ${h} L${pts[0][0]} ${h} Z" fill="${c}" opacity=".12"/><path d="${d}" fill="none" stroke="${c}" stroke-width="2" vector-effect="non-scaling-stroke"/><circle cx="${e[0]}" cy="${e[1]}" r="2.4" fill="${c}"/></svg>`;
 }
-function computeAlerts(zone){
+function computeAlerts(zone,axe="TOUS",mois="TOUS"){
   const latest=new Map();
-  for(const f of S.fiches){ if(f.type!=="PRESENCE"||(zone!=="TOUTES"&&f.zone!==zone)) continue; const k=f.segment+"|"+f.marche; const o=latest.get(k); if(!o||f.date>o.date) latest.set(k,f); }
+  for(const f of S.fiches){ if(f.type!=="PRESENCE"||!fiOK(f,{zone,axe,mois})) continue; const k=f.segment+"|"+f.marche; const o=latest.get(k); if(!o||f.date>o.date) latest.set(k,f); }
   const items=[];
   for(const f of latest.values()){
     const ech=+f.echantillon||0; if(!ech) continue;
@@ -658,7 +763,7 @@ function computeAlerts(zone){
     }
   }
   items.sort((a,b)=>b.gap-a.gap);
-  const lastVisit=new Map(); for(const f of S.fiches){ if(zone!=="TOUTES"&&f.zone!==zone) continue; if(!lastVisit.has(f.marche)||f.date>lastVisit.get(f.marche)) lastVisit.set(f.marche,f.date); }
+  const lastVisit=new Map(); for(const f of S.fiches){ if(!fiOK(f,{zone,axe})) continue; if(!lastVisit.has(f.marche)||f.date>lastVisit.get(f.marche)) lastVisit.set(f.marche,f.date); }
   const lim=new Date(Date.now()-30*864e5).toISOString().slice(0,10);
   const stale=[...lastVisit].filter(([,d])=>d<lim).map(([m])=>m).sort();
   return {items,stale};
@@ -669,7 +774,8 @@ function renderPresence(){
   const seg=$("pSeg").value;
   fillSelect($("pType"), [["PRESENCE","Étude de présence"],["CALEBASSE","Sondage calebasse"],["SONDAGE","Sondage consommateurs"]]);
   fillSelect($("pFmt"), [["TOUS","Tous formats"]].concat(uniq(S.fiches.filter(f=>f.segment===seg).flatMap(f=>(f.lignes||[]).map(l=>l.format))).map(x=>[x,x])));
-  const f={seg,type:$("pType").value,zone:$("pZone").value,mois:$("pMois").value,fmt:$("pFmt").value};
+  fillAxe($("pAxe"),$("pZone").value);
+  const f={seg,type:$("pType").value,zone:$("pZone").value,axe:$("pAxe").closest(".field").hidden?"TOUS":$("pAxe").value,mois:$("pMois").value,fmt:$("pFmt").value};
   const rows=lines(f);
   const fiches=new Set(rows.map(r=>r.fi));
   const rank=agg(rows,r=>r.marque).sort((a,b)=>b.rate-a.rate);
@@ -683,7 +789,7 @@ function renderPresence(){
     ["Marchés",new Set([...fiches].map(x=>x.marche)).size,`${new Set([...fiches].map(x=>x.agent)).size} agents`],
   ];
   $("pKpis").innerHTML=k.map(x=>`<div class="card kpi"><div class="lbl">${x[0]}</div><div class="val num" style="font-size:${String(x[1]).length>9?"1.25rem":"2rem"}">${x[1]}</div><div class="hint">${x[2]}</div></div>`).join("");
-  $("pRankSub").textContent = rows.length ? `${TYPES[f.type]} · ${f.zone==="TOUTES"?"toutes zones":f.zone} · ${f.mois==="TOUS"?"toute la période":mLabel(f.mois)}` : "Aucune donnée pour ces filtres.";
+  $("pRankSub").textContent = rows.length ? `${TYPES[f.type]} · ${f.zone==="TOUTES"?"toutes zones":f.zone}${f.axe&&f.axe!=="TOUS"?" · "+axeLabel(f.axe):""} · ${f.mois==="TOUS"?"toute la période":perShort(f.mois)}` : "Aucune donnée pour ces filtres.";
   const ourColor = seg==="MAYONNAISE"?tok("--leaf"):tok("--purple");
   rankChart("cRank", rank.slice(0,16), ourColor);
 
@@ -813,19 +919,23 @@ function renderConcurrence(){
 /* ---------- Vue : Base ---------- */
 function renderBase(){
   const t=$("bType").value||"TOUS", q=norm($("bSearch").value);
-  const F=[...S.fiches].filter(f=>(t==="TOUS"||f.type===t)&&(!q||norm([f.marche,f.agent,f.zone,f.segment,f.date].join(" ")).includes(q)))
+  const F=[...S.fiches].filter(f=>(t==="TOUS"||f.type===t)&&(!q||norm([f.marche,f.agent,f.zone,f.axe,f.segment,f.date].join(" ")).includes(q)))
     .sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   const shown=F.slice(0,300);
-  $("baseTable").innerHTML=`<thead><tr><th>Date</th><th>Type</th><th>Segment</th><th>Zone</th><th>Marché</th><th>Agent</th><th class="r">Échant.</th><th class="r">Lignes</th><th>Source</th><th></th></tr></thead><tbody>`+
-    shown.map(f=>`<tr><td class="num">${fmtDate(f.date)}</td><td><span class="chip ${f.type}">${TYPES[f.type]||f.type}</span></td><td>${esc(f.segment)}</td><td>${esc(f.zone)}</td><td><b>${esc(f.marche)}</b></td><td>${esc(f.agent)}</td><td class="r num">${f.echantillon??"–"}</td><td class="r num">${(f.lignes||[]).length}</td><td>${f.source==="import"?"Excel":"Terrain"}</td>
+  $("baseTable").innerHTML=`<thead><tr><th>Date</th><th>Type</th><th>Segment</th><th>Zone</th><th>Axe</th><th>Marché</th><th>Agent</th><th class="r">Échant.</th><th class="r">Lignes</th><th>Source</th><th></th></tr></thead><tbody>`+
+    shown.map(f=>`<tr><td class="num">${fmtDate(f.date)}</td><td><span class="chip ${f.type}">${TYPES[f.type]||f.type}</span></td><td>${esc(f.segment)}</td><td>${esc(f.zone)}</td><td>${f.axe?esc(axeLabel(f.axe)):(f.zone==="NIAMEY"?'<span class="note">à préciser</span>':"–")}</td><td><b>${esc(f.marche)}</b></td><td>${esc(f.agent)}</td><td class="r num">${f.echantillon??"–"}</td><td class="r num">${(f.lignes||[]).length}</td><td>${f.source==="import"?"Excel":"Terrain"}</td>
       <td><span class="confirmrow"><button class="btn ghost sm" type="button" data-see="${esc(f._id)}">Voir</button>${S.canEdit?`<button class="btn ghost sm" type="button" data-del="${esc(f._id)}">Supprimer</button>`:""}</span></td></tr>
-      <tr data-detail="${esc(f._id)}" hidden><td colspan="10" style="white-space:normal;background:var(--surface-2)">${detail(f)}</td></tr>`).join("")+"</tbody>";
+      <tr data-detail="${esc(f._id)}" hidden><td colspan="11" style="white-space:normal;background:var(--surface-2)">${detail(f)}</td></tr>`).join("")+"</tbody>";
   $("baseNote").textContent=`${F.length} fiches${F.length>300?" (300 plus récentes affichées)":""}.`;
 }
+function axeEditor(f){
+  if(!S.canWrite||!(f.zone==="NIAMEY"||axesOf(f.zone).length)) return "";
+  return `<div style="margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label for="ax_${esc(f._id)}"><b>Axe de cette fiche :</b></label><select id="ax_${esc(f._id)}" data-setaxe="${esc(f._id)}" style="max-width:280px"><option value="">Axe non précisé</option>${axesOf(f.zone).map(a=>`<option value="${esc(a)}" ${a===f.axe?"selected":""}>${esc(axeLabel(a))}</option>`).join("")}</select></div>`;
+}
 function detail(f){
-  if(f.type==="PRIX") return `<div class="tablewrap"><table><thead><tr><th>Produit</th><th class="r">Grossiste</th><th class="r">½ gros</th><th class="r">Détaillant</th><th class="r">Conso.</th></tr></thead><tbody>${(f.lignes||[]).map(l=>`<tr class="${isOurs(l.produit)?"ours":""}"><td>${esc(l.produit)}</td><td class="r num">${fcfa(l.prixGros)}</td><td class="r num">${fcfa(l.prixDemiGros)}</td><td class="r num">${fcfa(l.prixDetail)}</td><td class="r num">${fcfa(l.prixConso)}</td></tr>`).join("")}</tbody></table></div>${f.observations?`<p>${esc(f.observations)}</p>`:""}`;
+  if(f.type==="PRIX") return axeEditor(f)+`<div class="tablewrap"><table><thead><tr><th>Produit</th><th class="r">Grossiste</th><th class="r">½ gros</th><th class="r">Détaillant</th><th class="r">Conso.</th></tr></thead><tbody>${(f.lignes||[]).map(l=>`<tr class="${isOurs(l.produit)?"ours":""}"><td>${esc(l.produit)}</td><td class="r num">${fcfa(l.prixGros)}</td><td class="r num">${fcfa(l.prixDemiGros)}</td><td class="r num">${fcfa(l.prixDetail)}</td><td class="r num">${fcfa(l.prixConso)}</td></tr>`).join("")}</tbody></table></div>${f.observations?`<p>${esc(f.observations)}</p>`:""}`;
   let rpD=[]; const e=+f.echantillon||1, tS=(f.lignes||[]).reduce((a,l)=>a+(+l.score||0),0);
-  return `<div style="display:flex;flex-wrap:wrap;gap:6px 18px">${(()=>{ const Ls=(f.lignes||[]).slice().sort((a,b)=>b.score-a.score); rpD=round100(Ls.map(l=>+l.score||0)); return Ls; })().map((l,k)=>`<span style="min-width:180px"><b style="${isOurs(l.marque)?"color:var(--purple)":""}">${esc(l.marque)}</b> ${l.score} · ${rpD[k]??0} %</span>`).join("")}</div>${f.observations?`<p>${esc(f.observations)}</p>`:""}`;
+  return axeEditor(f)+`<div style="display:flex;flex-wrap:wrap;gap:6px 18px">${(()=>{ const Ls=(f.lignes||[]).slice().sort((a,b)=>b.score-a.score); rpD=round100(Ls.map(l=>+l.score||0)); return Ls; })().map((l,k)=>`<span style="min-width:180px"><b style="${isOurs(l.marque)?"color:var(--purple)":""}">${esc(l.marque)}</b> ${l.score} · ${rpD[k]??0} %</span>`).join("")}</div>${f.observations?`<p>${esc(f.observations)}</p>`:""}`;
 }
 
 /* ---------- Saisie ---------- */
@@ -884,7 +994,11 @@ async function saveFiche(ev){
   if(!S.canWrite){ msg.textContent="Votre profil est en lecture seule."; return; }
   const zone=norm($("sZone").value), marche=norm($("sMarche").value), date=$("sDate").value, agent=norm($("sAgent").value), ech=+$("sEch").value||null;
   if(!zone||!marche||!date||!agent){ msg.textContent="Renseignez la zone, le marché, la date et l'agent."; return; }
-  const doc={type:curType,segment:$("sSeg").value,zone,marche,date,agent,echantillon:curType==="PRIX"?null:ech,observations:$("sObs").value.trim(),lignes:[]};
+  let axe=null;
+  if(!$("axeField").hidden){ axe=$("sAxe").value==="__NEW"?norm($("sAxeNew").value):$("sAxe").value;
+    if(!axe){ msg.textContent=$("sAxe").value==="__NEW"?"Écrivez le nom du nouvel axe.":"Choisissez l'axe de Niamey."; return; }
+    if(!/^AXE\b/.test(axe)) axe="AXE "+axe; }
+  const doc={type:curType,segment:$("sSeg").value,zone,axe,marche,date,agent,echantillon:curType==="PRIX"?null:ech,observations:$("sObs").value.trim(),lignes:[]};
   if(curType==="PRIX"){
     entryBrands.forEach((b,i)=>{ const v=k=>{const x=$(`e_${k}_${i}`).value; return x===""?null:+x;};
       if(v("gros")||v("conso")) doc.lignes.push({produit:b.m,poids:b.poids||null,qtyCtn:v("qty"),prixGros:v("gros"),prixDemiGros:v("demi"),prixDetail:v("det"),prixConso:v("conso")}); });
@@ -898,7 +1012,8 @@ async function saveFiche(ev){
     if(!doc.lignes.length){ msg.textContent="Saisissez au moins un score de marque."; return; }
   }
   $("saveBtn").disabled=true; msg.textContent="Enregistrement…";
-  try{ await api("fiche.save",{fiche:doc}); await reload(); toast(`Fiche enregistrée : ${marche}, ${TYPES[curType].toLowerCase()}`);
+  try{ await api("fiche.save",{fiche:doc}); await reload(); toast(`Fiche enregistrée : ${marche}${axe?" ("+axeLabel(axe)+")":""}, ${TYPES[curType].toLowerCase()}`);
+    if(axe){ fillAxeEntry(); $("sAxe").value=axe; $("sAxeNew").hidden=true; $("sAxeNew").value=""; }
     msg.textContent=""; drawEntry(); $("sObs").value="";
   }catch(e){ msg.textContent = e.message||"Échec de l'enregistrement, réessayez."; }
   $("saveBtn").disabled=false;
@@ -919,19 +1034,19 @@ const xDate=d=>{ if(!d) return null; const [y,m,j]=d.split("-").map(Number); ret
 function sheetOf(rows,widths){ const ws=XLSX.utils.aoa_to_sheet(rows,{cellDates:true,dateNF:"dd/mm/yyyy"}); ws["!cols"]=widths.map(w=>({wch:w})); ws["!autofilter"]={ref:ws["!ref"]}; return ws; }
 function exportCsv(){
   if(!window.XLSX){ toast("Le module Excel n'a pas pu se charger. Vérifiez votre connexion."); return; }
-  const E=[["DATE","TYPE D'ÉTUDE","SEGMENT","ZONE","MARCHÉ","AGENT","ÉCHANTILLON","MARQUE","FORMAT","SCORE","PART","NOTRE PRODUIT","OBSERVATIONS"]];
-  const P=[["DATE","SEGMENT","ZONE","MARCHÉ","AGENT","PRODUIT","POIDS (g)","QTÉ / CARTON","PRIX GROSSISTE","PRIX ½ GROS","VENTE DÉTAILLANT","PRIX CONSOMMATEUR","MARGE GROSSISTE","MARGE BOUTIQUE","NOTRE PRODUIT"]];
+  const E=[["DATE","TYPE D'ÉTUDE","SEGMENT","ZONE","AXE","MARCHÉ","AGENT","ÉCHANTILLON","MARQUE","FORMAT","SCORE","PART","NOTRE PRODUIT","OBSERVATIONS"]];
+  const P=[["DATE","SEGMENT","ZONE","AXE","MARCHÉ","AGENT","PRODUIT","POIDS (g)","QTÉ / CARTON","PRIX GROSSISTE","PRIX ½ GROS","VENTE DÉTAILLANT","PRIX CONSOMMATEUR","MARGE GROSSISTE","MARGE BOUTIQUE","NOTRE PRODUIT"]];
   const A=[["DATE","MARCHÉ","MARQUE CONCURRENTE","CATÉGORIE","IMPACT","SIGNALÉ PAR","DESCRIPTION"]];
   const F=[...S.fiches].sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.marche).localeCompare(String(b.marche)));
   for(const f of F){
     if(f.type==="PRIX"){ for(const l of f.lignes||[]){ const g=+l.prixGros||null,d=+l.prixDemiGros||null,r=+l.prixDetail||null;
-      P.push([xDate(f.date),f.segment,f.zone,f.marche,f.agent,l.produit,l.poids??null,l.qtyCtn??null,g,d,r,l.prixConso??null,g&&d?Math.round((d-g)/g*1000)/1000:null,d&&r?Math.round((r-d)/d*1000)/1000:null,isOurs(l.produit)?"OUI":"NON"]); } }
-    else { const tS=(f.lignes||[]).reduce((a,l)=>a+(+l.score||0),0); for(const l of f.lignes||[]) E.push([xDate(f.date),f.type,f.segment,f.zone,f.marche,f.agent,f.echantillon,l.marque,l.format||"",l.score,tS?Math.round(l.score/tS*1000)/1000:null,isOurs(l.marque)?"OUI":"NON",f.observations||""]); }
+      P.push([xDate(f.date),f.segment,f.zone,f.axe||"",f.marche,f.agent,l.produit,l.poids??null,l.qtyCtn??null,g,d,r,l.prixConso??null,g&&d?Math.round((d-g)/g*1000)/1000:null,d&&r?Math.round((r-d)/d*1000)/1000:null,isOurs(l.produit)?"OUI":"NON"]); } }
+    else { const tS=(f.lignes||[]).reduce((a,l)=>a+(+l.score||0),0); for(const l of f.lignes||[]) E.push([xDate(f.date),f.type,f.segment,f.zone,f.axe||"",f.marche,f.agent,f.echantillon,l.marque,l.format||"",l.score,tS?Math.round(l.score/tS*1000)/1000:null,isOurs(l.marque)?"OUI":"NON",f.observations||""]); }
   }
   for(const v of [...S.veille].sort((a,b)=>String(a.date).localeCompare(String(b.date)))) A.push([xDate(v.date),v.marche||"",v.marque,v.categorie,v.impact,v.agent||"",v.description]);
   const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,sheetOf(E,[12,15,14,13,20,13,13,24,11,10,10,12,40]),"ENQUETES");
-  XLSX.utils.book_append_sheet(wb,sheetOf(P,[12,14,12,16,16,30,10,11,14,13,15,15,14,14,12]),"PRIX");
+  XLSX.utils.book_append_sheet(wb,sheetOf(E,[12,15,14,13,24,20,13,13,24,11,10,10,12,40]),"ENQUETES");
+  XLSX.utils.book_append_sheet(wb,sheetOf(P,[12,14,12,24,16,16,30,10,11,14,13,15,15,14,14,12]),"PRIX");
   XLSX.utils.book_append_sheet(wb,sheetOf(A,[12,18,20,26,10,16,70]),"ACTIONS CONCURRENCE");
   XLSX.writeFile(wb,`BASE_VEILLE_ENQUETES_ORIBA_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast("Base Excel téléchargée");
@@ -954,24 +1069,24 @@ function readSheet(wb,needle){
 function parseWorkbook(wb){
   const fiches=new Map(), actions=[], errs=[];
   const E=readSheet(wb,"ENQUETE");
-  if(E){ const c={d:E.col("DATE"),t:E.col("TYPE D ETUDE","TYPE ETUDE","ETUDE","TYPE"),s:E.col("SEGMENT","NATURE PRODUIT"),z:E.col("ZONE"),m:E.col("MARCHE"),a:E.col("AGENT"),e:E.col("ECHANTILLON"),b:E.col("MARQUE"),f:E.col("FORMAT"),sc:E.col("SCORE"),o:E.col("OBSERVATIONS")};
+  if(E){ const c={d:E.col("DATE"),t:E.col("TYPE D ETUDE","TYPE ETUDE","ETUDE","TYPE"),s:E.col("SEGMENT","NATURE PRODUIT"),z:E.col("ZONE"),x:E.col("AXE"),m:E.col("MARCHE"),a:E.col("AGENT"),e:E.col("ECHANTILLON"),b:E.col("MARQUE"),f:E.col("FORMAT"),sc:E.col("SCORE"),o:E.col("OBSERVATIONS")};
     for(const {r,ligne} of E.rows){ const g=k=>c[k]>=0?r[c[k]]:null;
       if(!g("b")&&(g("sc")==null||g("sc")==="")) continue;
       const date=cellDate(g("d")); if(!date||date==="invalide"){ errs.push(`${E.name} ligne ${ligne} : date manquante ou illisible`); continue; }
       const sc=numv(g("sc")); if(sc==null||isNaN(sc)){ errs.push(`${E.name} ligne ${ligne} : score manquant`); continue; }
       const key=[date,norm(g("t")),norm(g("s")),norm(g("m")),norm(g("a"))].join("|");
-      if(!fiches.has(key)) fiches.set(key,{ref:`${E.name} ligne ${ligne}`,date,type:norm(g("t")),segment:norm(g("s")),zone:norm(g("z")),marche:norm(g("m")),agent:norm(g("a")),echantillon:numv(g("e")),observations:[],lignes:[]});
+      if(!fiches.has(key)) fiches.set(key,{ref:`${E.name} ligne ${ligne}`,date,type:norm(g("t")),segment:norm(g("s")),zone:norm(g("z")),axe:norm(g("x"))||null,marche:norm(g("m")),agent:norm(g("a")),echantillon:numv(g("e")),observations:[],lignes:[]});
       const F=fiches.get(key); if(!F.echantillon) F.echantillon=numv(g("e")); const o=String(g("o")||"").trim(); if(o&&!F.observations.includes(o)) F.observations.push(o);
       F.lignes.push({marque:norm(g("b")),format:String(g("f")||"").trim(),score:sc}); } }
   const P=readSheet(wb,"PRIX");
-  if(P){ const c={d:P.col("DATE"),s:P.col("SEGMENT"),z:P.col("ZONE","VILLE"),m:P.col("MARCHE"),a:P.col("AGENT"),p:P.col("PRODUIT","PRODUCT DESCRIPTION"),w:P.col("POIDS G","POIDS"),q:P.col("QTE / CARTON","QTY/CTN","QTE CARTON"),g:P.col("PRIX GROSSISTE"),h:P.col("PRIX 1 2 GROS","PRIX 1/2 GROS","PRIX GROS"),r:P.col("VENTE DETAILLANT"),cs:P.col("PRIX CONSOMMATEUR")};
+  if(P){ const c={d:P.col("DATE"),s:P.col("SEGMENT"),z:P.col("ZONE","VILLE"),x:P.col("AXE"),m:P.col("MARCHE"),a:P.col("AGENT"),p:P.col("PRODUIT","PRODUCT DESCRIPTION"),w:P.col("POIDS G","POIDS"),q:P.col("QTE / CARTON","QTY/CTN","QTE CARTON"),g:P.col("PRIX GROSSISTE"),h:P.col("PRIX 1 2 GROS","PRIX 1/2 GROS","PRIX GROS"),r:P.col("VENTE DETAILLANT"),cs:P.col("PRIX CONSOMMATEUR")};
     if(c.h<0){ const hh=P.rows.length?null:null; }
     for(const {r,ligne} of P.rows){ const g=k=>c[k]>=0?r[c[k]]:null;
       if(!g("p")) continue; if(numv(g("g"))==null&&numv(g("cs"))==null) continue;
       const date=cellDate(g("d")); if(!date||date==="invalide"){ errs.push(`${P.name} ligne ${ligne} : date manquante ou illisible`); continue; }
       const seg=norm(g("s"))||(/MAYO/i.test(g("p"))?"MAYONNAISE":"BOUILLON");
       const key=[date,"PRIX",seg,norm(g("m")),norm(g("a"))].join("|");
-      if(!fiches.has(key)) fiches.set(key,{ref:`${P.name} ligne ${ligne}`,date,type:"PRIX",segment:seg,zone:norm(g("z")),marche:norm(g("m")),agent:norm(g("a"))||"NON RENSEIGNE",echantillon:null,observations:[],lignes:[]});
+      if(!fiches.has(key)) fiches.set(key,{ref:`${P.name} ligne ${ligne}`,date,type:"PRIX",segment:seg,zone:norm(g("z")),axe:norm(g("x"))||null,marche:norm(g("m")),agent:norm(g("a"))||"NON RENSEIGNE",echantillon:null,observations:[],lignes:[]});
       const v=k=>{ const n=numv(g(k)); return n==null||isNaN(n)?null:n; };
       fiches.get(key).lignes.push({produit:norm(g("p")),poids:v("w"),qtyCtn:v("q"),prixGros:v("g"),prixDemiGros:v("h"),prixDetail:v("r"),prixConso:v("cs")}); } }
   const AC=readSheet(wb,"ACTION");
@@ -1012,7 +1127,7 @@ $("importBtn").addEventListener("click",()=>{ if(!S.canWrite){ toast("Votre acc�
 $("importFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) importExcel(f); });
 
 /* ---------- Navigation & rendu ---------- */
-const VIEWS=["tableau","saisie","presence","prix","concurrence","base","utilisateurs"];
+const VIEWS=["tableau","saisie","presence","prix","concurrence","rapports","base","utilisateurs"];
 function current(){ const h=location.hash.slice(1); if(h==="utilisateurs"&&!S.user?.droits?.gerer) return "tableau"; return VIEWS.includes(h)?h:"tableau"; }
 function show(){
   const v=current();
@@ -1023,8 +1138,8 @@ function show(){
 }
 function refreshLists(){
   const z=[["TOUTES","Toutes les zones"]].concat(zones().map(x=>[x,x]));
-  const m=[["TOUS","Toute la période"]].concat(moisList().map(x=>[x,mLabel(x)]));
-  fillSelect($("fZone"),z); fillSelect($("pZone"),z); fillSelect($("fMois"),m); fillSelect($("pMois"),m);
+  fillSelect($("fZone"),z); fillSelect($("pZone"),z); fillPeriod($("fMois")); fillPeriod($("pMois"));
+  fillAxeEntry();
   $("dlZones").innerHTML=zones().map(x=>`<option value="${esc(x)}">`).join("");
   $("dlMarches").innerHTML=marches().map(x=>`<option value="${esc(x)}">`).join("");
   $("dlAgents").innerHTML=agents().map(x=>`<option value="${esc(x)}">`).join("");
@@ -1040,6 +1155,7 @@ function render(){
     else if(v==="prix") renderPrix();
     else if(v==="concurrence") renderConcurrence();
     else if(v==="base") renderBase();
+    else if(v==="rapports") renderRapports();
     else if(v==="utilisateurs"){ if(!USERS.length) loadUsers(); }
   }catch(e){ console.error(e); }
 }
@@ -1062,7 +1178,7 @@ async function api(action,payload={}){
 const mapF=f=>({...f,_id:f.id,createdAt:f.created_at});
 async function reload(){
   const d=await api("data.load");
-  S.fiches=d.fiches.map(mapF); S.veille=d.actions.map(mapF); S.loaded=true;
+  S.fiches=d.fiches.map(mapF); S.veille=d.actions.map(mapF); S.axes=d.axes||[]; S.loaded=true;
   if(S.user) setHello(S.user);
   setLive("on",`À jour · ${S.fiches.length} fiches · ${new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}`);
   scheduleRender();
@@ -1179,10 +1295,254 @@ $("usersTable").addEventListener("click",async ev=>{
     catch(err){ toast(err.message); } }
 });
 
+function fillAxeEntry(){
+  const z=norm($("sZone").value), show=z==="NIAMEY"||(z&&axesOf(z).length>0);
+  $("axeField").hidden=!show; if(!show) return;
+  const cur=$("sAxe").value;
+  $("sAxe").innerHTML=`<option value="">— Choisir l'axe —</option>`+axesOf(z||"NIAMEY").map(a=>`<option value="${esc(a)}">${esc(axeLabel(a))}</option>`).join("")+`<option value="__NEW">+ Autre axe (l'ajouter)</option>`;
+  if([...$("sAxe").options].some(o=>o.value===cur)) $("sAxe").value=cur;
+  $("sAxeNew").hidden=$("sAxe").value!=="__NEW";
+}
+/* ---------- Rapports PDF (journalier, hebdomadaire, mensuel) ---------- */
+let repKind="J";
+const KIND_TXT={J:"Rapport journalier",S:"Rapport hebdomadaire",M:"Rapport mensuel"};
+function repKey(){
+  if(repKind==="J") return $("repDay").value?"J"+$("repDay").value:null;
+  if(repKind==="S") return $("repWeek").value||null;
+  return $("repMonth").value||null;
+}
+function repFilter(){ const zone=$("repZone").value||"TOUTES"; return {zone, axe:$("repAxeF").hidden?"TOUS":($("repAxe").value||"TOUS"), mois:repKey()}; }
+function renderRapports(){
+  document.querySelectorAll("#repKind button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.k===repKind));
+  $("repDayF").hidden=repKind!=="J"; $("repWeekF").hidden=repKind!=="S"; $("repMonthF").hidden=repKind!=="M";
+  const ds=S.fiches.map(f=>f.date).filter(Boolean).concat(S.veille.map(v=>v.date)).concat([today]);
+  fillSelect($("repWeek"),uniq(ds.map(wKey)).reverse().map(w=>["S"+w,perShort("S"+w)]));
+  fillSelect($("repMonth"),uniq(ds.map(mKey)).reverse().map(m=>[m,mLabel(m)]));
+  if(!$("repDay").value) $("repDay").value=today;
+  fillSelect($("repZone"),[["TOUTES","Toutes les zones"]].concat(zones().map(x=>[x,x])));
+  fillAxe($("repAxe"),$("repZone").value);
+  const f=repFilter(), F=f.mois?S.fiches.filter(x=>fiOK(x,f)):[];
+  const nT=t=>F.filter(x=>x.type===t).length;
+  const A=f.mois?S.veille.filter(v=>inPer(v.date,f.mois)):[];
+  $("repPreview").innerHTML=`<div class="notice ${F.length?"info":""}" style="margin-top:12px"><b>${esc(KIND_TXT[repKind])} · ${esc(f.mois?perLabel(f.mois):"choisissez la période")}</b><br>
+    ${esc(f.zone==="TOUTES"?"Toutes les zones":f.zone)}${f.axe!=="TOUS"?" · "+esc(axeLabel(f.axe)):""} : <b>${F.length}</b> fiche${F.length>1?"s":""}
+    (${nT("PRESENCE")} présence, ${nT("CALEBASSE")} calebasse, ${nT("SONDAGE")} sondage consommateurs, ${nT("PRIX")} relevé${nT("PRIX")>1?"s":""} de prix), ${A.length} action${A.length>1?"s":""} concurrente${A.length>1?"s":""}.
+    ${F.length?"":"<br>Aucune fiche pour cette sélection : le rapport indiquera qu'il n'y a pas de données."}</div>`;
+}
+function loadScript(src){ return new Promise((ok,ko)=>{ const s=document.createElement("script"); s.src=src; s.onload=ok; s.onerror=()=>ko(new Error("Le module PDF n'a pas pu se charger. Vérifiez votre connexion internet puis réessayez.")); document.head.appendChild(s); }); }
+async function ensurePdf(){
+  if(!window.jspdf) await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+  if(!window.jspdf.jsPDF.API.autoTable) await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
+}
+/* Texte compatible avec les polices standard du PDF */
+const T=s=>String(s??"").replace(/[  ]/g," ").replace(/[–—]/g,"-").replace(/[’]/g,"'").replace(/→/g,"->").replace(/…/g,"...").replace(/[“”«»]/g,'"');
+const PDF_OUR=["#46307a","#5e8a3a","#6b55a8","#2a9a2a","#c07a12","#8fc062"];
+const hexRgb=h=>{ const n=parseInt(h.replace("#",""),16); return [(n>>16)&255,(n>>8)&255,n&255]; };
+const pctTxt=(v,d=0)=>v==null||isNaN(v)?"-":(v*100).toFixed(d).replace(".",",")+" %";
+const fcfaTxt=v=>v==null||isNaN(v)?"-":T(Math.round(v).toLocaleString("fr-FR"))+" F";
+function brandColorPdf(m,ourIdx){ return isOurs(m)?PDF_OUR[ourIdx%PDF_OUR.length]:compColor(m); }
+function pieImage(items){
+  const c=document.createElement("canvas"); c.width=640; c.height=334;
+  const big=items.map(i=>({...i})); pie3d(c,big,null);
+  return c.toDataURL("image/png");
+}
+
+async function genReport(){
+  const msg=$("repMsg"), f=repFilter();
+  if(!f.mois){ msg.textContent="Choisissez la période du rapport."; return; }
+  $("repBtn").disabled=true; msg.textContent="Préparation du PDF…";
+  try{ await ensurePdf(); buildPdf(repKind,f); msg.textContent="Rapport téléchargé."; }
+  catch(e){ console.error(e); msg.textContent=e.message||"Le rapport n'a pas pu être créé."; }
+  $("repBtn").disabled=false;
+}
+
+function buildPdf(kind,f){
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:"mm",format:"a4"});
+  const W=210, M=14, CW=W-2*M; let y=0;
+  const P=hexRgb("#46307a"), G=hexRgb("#5e8a3a"), INK=[33,28,48], MUT=[105,99,122], SOFT=[243,240,249];
+  const F=S.fiches.filter(x=>fiOK(x,f)).sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.marche).localeCompare(String(b.marche)));
+  const prevK=perPrev(f.mois), FP=S.fiches.filter(x=>fiOK(x,{...f,mois:prevK}));
+  const zM=new Set(S.fiches.filter(x=>f.zone==="TOUTES"||x.zone===f.zone).map(x=>x.marche));
+  const A=S.veille.filter(v=>inPer(v.date,f.mois)&&(f.zone==="TOUTES"||!v.marche||zM.has(v.marche)));
+  const scope=`${f.zone==="TOUTES"?"Toutes les zones":"Zone : "+f.zone}${f.axe!=="TOUS"?" · "+axeLabel(f.axe):""}`;
+  const L=o=>lines({...f,...o});
+  const LP=o=>lines({...f,mois:prevK,...o});
+  const titre=KIND_TXT[kind];
+
+  const space=h=>{ if(y+h>282){ doc.addPage(); y=18; } };
+  const h1=(txt)=>{ space(45); y+=3; doc.setFillColor(...P); doc.rect(M,y,3,7,"F"); doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(...P); doc.text(T(txt),M+6,y+5.5); y+=11; };
+  const h2=(txt)=>{ space(10); doc.setFont("helvetica","bold"); doc.setFontSize(10.5); doc.setTextColor(...INK); doc.text(T(txt),M,y+4); y+=7; };
+  const para=(txt,size=9,color=MUT)=>{ doc.setFont("helvetica","normal"); doc.setFontSize(size); doc.setTextColor(...color); const ls=doc.splitTextToSize(T(txt),CW); space(ls.length*4.2+2); doc.text(ls,M,y+3.5); y+=ls.length*4.2+2; };
+  const table=(head,body,opt={})=>{
+    doc.autoTable({startY:y,margin:{left:M,right:M,top:18,bottom:16},head:[head.map(T)],body:body.map(r=>r.map(c=>typeof c==="object"&&c!==null&&!Array.isArray(c)?{...c,content:T(c.content)}:T(c))),
+      theme:"grid",styles:{font:"helvetica",fontSize:8,cellPadding:1.6,textColor:INK,lineColor:[222,218,232],lineWidth:.15,overflow:"linebreak"},
+      headStyles:{fillColor:P,textColor:255,fontStyle:"bold",fontSize:8},alternateRowStyles:{fillColor:[249,248,252]},...opt});
+    y=doc.lastAutoTable.finalY+5;
+  };
+
+  // En-tête
+  doc.setFillColor(...P); doc.rect(0,0,W,34,"F");
+  try{ const logo=document.querySelector(".logo img")?.src; if(logo){ doc.setFillColor(255,255,255); doc.roundedRect(M,6,34,22,2,2,"F"); doc.addImage(logo,"JPEG",M+1.5,7.5,31,19); } }catch(e){}
+  doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(17); doc.text(T(titre),M+40,14);
+  doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.text(T("Veille & Enquêtes · Oriba Foods"),M+40,20);
+  doc.setFont("helvetica","bold"); doc.setFontSize(10.5); doc.text(T(perLabel(f.mois)),M+40,27);
+  y=41; doc.setTextColor(...MUT); doc.setFont("helvetica","normal"); doc.setFontSize(8.5);
+  doc.text(T(`${scope} · Généré le ${new Date().toLocaleDateString("fr-FR")} à ${new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})} par ${[S.user?.prenom,S.user?.nom].filter(Boolean).join(" ")||"-"}`),M,y); y+=5;
+
+  // 1. Synthèse
+  h1("1. Synthèse de la période");
+  const nT=(X,t)=>X.filter(x=>x.type===t).length, ech=X=>X.filter(x=>x.type!=="PRIX").reduce((s,x)=>s+(+x.echantillon||0),0);
+  const kp=[["Fiches collectées",F.length,FP.length],["Études de présence",nT(F,"PRESENCE"),nT(FP,"PRESENCE")],["Sondages calebasse",nT(F,"CALEBASSE"),nT(FP,"CALEBASSE")],["Sondages consommateurs",nT(F,"SONDAGE"),nT(FP,"SONDAGE")],["Relevés de prix",nT(F,"PRIX"),nT(FP,"PRIX")],
+    ["Boutiques visitées / personnes interrogées",ech(F),ech(FP)],["Marchés couverts",new Set(F.map(x=>x.marche)).size,new Set(FP.map(x=>x.marche)).size],["Axes couverts",new Set(F.filter(x=>x.axe).map(x=>x.axe)).size,new Set(FP.filter(x=>x.axe).map(x=>x.axe)).size],["Agents actifs",new Set(F.map(x=>x.agent)).size,new Set(FP.map(x=>x.agent)).size],["Actions concurrentes signalées",A.length,S.veille.filter(v=>inPer(v.date,prevK)).length]];
+  table(["Indicateur","Période","Période précédente"],kp.map(r=>[r[0],{content:String(T(Number(r[1]).toLocaleString("fr-FR"))),styles:{fontStyle:"bold",halign:"right"}},{content:String(T(Number(r[2]).toLocaleString("fr-FR"))),styles:{halign:"right",textColor:MUT}}]),{columnStyles:{0:{cellWidth:110}}});
+  if(!F.length){ para("Aucune fiche n'a été enregistrée pour cette sélection. Les sections suivantes sont vides."); }
+
+  // Points clés
+  const keys=[];
+  for(const seg of ["BOUILLON","MAYONNAISE"]){ const r=agg(L({seg,type:"PRESENCE"}),x=>x.marque).sort((a,b)=>b.rate-a.rate); if(!r.length) continue;
+    const ours=r.filter(x=>isOurs(x.k)); keys.push(`${seg==="BOUILLON"?"Bouillon":"Mayonnaise"} : le leader de la présence est ${r[0].k} (${pctTxt(r[0].rate)}). ${ours.length?`Notre meilleur produit est ${ours[0].k} (${pctTxt(ours[0].rate)}, ${r.indexOf(ours[0])+1}e rang sur ${r.length}).`:"Aucun de nos produits n'a été trouvé."}`); }
+  const alerts=reportAlerts(F); if(alerts.length) keys.push(`${alerts.length} alerte${alerts.length>1?"s":""} : un concurrent devance nettement l'un de nos produits sur certains marchés (détail en section 7).`);
+  if(keys.length){ h2("Points clés"); keys.forEach(k=>para("•  "+k,9,INK)); }
+
+  // 2. Nos produits
+  h1("2. Nos produits");
+  const prodRows=OUR.map(p=>{
+    const share=(rows)=>{ const s=shareBy(rows,r=>p.test(r.marque),()=>1)[0]; return s?s.rate:null; };
+    const pres=share(L({seg:p.seg,type:"PRESENCE"})), presP=share(LP({seg:p.seg,type:"PRESENCE"}));
+    const r=agg(L({seg:p.seg,type:"PRESENCE"}),x=>brandOf(x.marque)).sort((a,b)=>b.rate-a.rate); const i=r.findIndex(x=>p.test(x.k));
+    const pr=F.filter(x=>x.type==="PRIX"&&x.segment===p.seg).flatMap(x=>x.lignes||[]).filter(l=>p.test(norm(l.produit))&&+l.prixConso>0);
+    const dv=pres!=null&&presP!=null?(pres-presP)*100:null;
+    return [p.nom,{content:pctTxt(pres),styles:{fontStyle:"bold",halign:"right"}},{content:dv==null?"-":(dv>0?"+":"")+dv.toFixed(0)+" pts",styles:{halign:"right",textColor:dv==null?MUT:dv>=0?G:[192,57,43]}},{content:i>=0?`${i+1}e / ${r.length}`:"-",styles:{halign:"center"}},{content:pctTxt(share(L({seg:p.seg,type:"CALEBASSE"}))),styles:{halign:"right"}},{content:pctTxt(share(L({seg:p.seg,type:"SONDAGE"}))),styles:{halign:"right"}},{content:pr.length?fcfaTxt(avg(pr.map(l=>+l.prixConso))):"-",styles:{halign:"right"}}];
+  });
+  table(["Produit","Part présence","Évolution","Rang","Sondage calebasse","Sondage conso.","Prix conso. moyen"],prodRows);
+  para("Part = citations de la marque ÷ toutes les citations du segment (total = 100 %). Évolution = écart avec la période précédente, en points.",7.5);
+
+  // 3. Classements par étude
+  space(100); h1("3. Classement des marques par étude");
+  let any=false;
+  for(const seg of ["BOUILLON","MAYONNAISE"]) for(const t of ["PRESENCE","CALEBASSE","SONDAGE"]){
+    const rows=L({seg,type:t}); if(!rows.length) continue; any=true;
+    const r=agg(rows,x=>x.marque).filter(x=>x.score>0).sort((a,b)=>b.score-a.score); const rp=round100(r.map(x=>x.score));
+    const nf=new Set(rows.map(x=>x.fi)).size, ne=[...new Set(rows.map(x=>x.fi))].reduce((s,x)=>s+(+x.echantillon||0),0);
+    space(80); h2(`${seg==="BOUILLON"?"Bouillon":"Mayonnaise"} · ${TYPES[t]} (${nf} fiche${nf>1?"s":""}, ${T(ne.toLocaleString("fr-FR"))} ${t==="PRESENCE"?"boutiques":"personnes"})`);
+    let oi=0; const items=[...r].sort((a,b)=>isOurs(b.k)-isOurs(a.k)||b.score-a.score).map(x=>({label:x.k,value:x.score,color:brandColorPdf(x.k,isOurs(x.k)?oi++:0)}));
+    const col=new Map(items.map(i=>[i.label,i.color]));
+    const yTop=y; const img=pieImage(items); doc.addImage(img,"PNG",M+CW-78,yTop,78,40.7);
+    doc.autoTable({startY:yTop,margin:{left:M,right:M+82,top:18,bottom:16},head:[["","Rang","Marque","Citations","Part"]],
+      body:r.map((x,k)=>["",String(k+1),T(x.k),String(x.score),rp[k]+" %"]),theme:"grid",
+      styles:{font:"helvetica",fontSize:7.5,cellPadding:1.2,textColor:INK,lineColor:[222,218,232],lineWidth:.15},headStyles:{fillColor:seg==="MAYONNAISE"?G:P,textColor:255,fontSize:7.5},
+      columnStyles:{0:{cellWidth:4},1:{cellWidth:10,halign:"center"},3:{halign:"right"},4:{halign:"right",fontStyle:"bold"}},
+      didParseCell:d=>{ if(d.section==="body"&&isOurs(r[d.row.index].k)){ d.cell.styles.fontStyle="bold"; d.cell.styles.fillColor=[240,236,248]; } },
+      didDrawCell:d=>{ if(d.section==="body"&&d.column.index===0){ doc.setFillColor(...hexRgb(col.get(r[d.row.index].k)||"#999999")); doc.rect(d.cell.x+1,d.cell.y+1.2,2.4,d.cell.height-2.4,"F"); } }});
+    y=Math.max(doc.lastAutoTable.finalY,yTop+43)+6;
+  }
+  if(!any) para("Aucune étude de présence ni sondage sur la période.");
+
+  // 4. Par axe
+  const fN={...f,zone:f.zone==="TOUTES"?"NIAMEY":f.zone};
+  const FN=S.fiches.filter(x=>fiOK(x,fN));
+  if(FN.some(x=>x.axe)||norm(fN.zone)==="NIAMEY"){
+    h1(`4. Résultats par axe (${fN.zone})`);
+    const axList=uniq(FN.map(x=>x.axe||"_SANS")).sort((a,b)=>(a==="_SANS")-(b==="_SANS")||a.localeCompare(b,"fr"));
+    if(!axList.length) para("Aucune fiche sur les axes pour cette période.");
+    else{
+      const body=axList.map(a=>{ const Fa=FN.filter(x=>(x.axe||"_SANS")===a);
+        const cells=OUR.map(p=>{ const s=shareBy(lines({...fN,axe:a,seg:p.seg,type:"PRESENCE"}),r=>p.test(r.marque),()=>1)[0]; const all=lines({...fN,axe:a,seg:p.seg,type:"PRESENCE"}).length; return {content:all?pctTxt(s?s.rate:0):"-",styles:{halign:"right"}}; });
+        return [axeLabel(a),{content:String(Fa.length),styles:{halign:"right"}},{content:String(new Set(Fa.map(x=>x.marche)).size),styles:{halign:"right"}},{content:T(ech(Fa).toLocaleString("fr-FR")),styles:{halign:"right"}},...cells]; });
+      table(["Axe","Fiches","Marchés","Échant.",...OUR.map(p=>p.nom.replace(/^(Arôme|Mayonnaise) /,""))],body,{styles:{fontSize:7.5,cellPadding:1.4,font:"helvetica",textColor:INK,lineColor:[222,218,232],lineWidth:.15}});
+      para("Parts de présence (études de présence) de chacun de nos produits sur l'axe.",7.5);
+    }
+  }
+
+  // 5. Par marché
+  h1("5. Résultats par marché");
+  const mk=uniq(F.filter(x=>x.type!=="PRIX").map(x=>x.marche));
+  if(!mk.length) para("Aucune fiche d'enquête sur la période.");
+  else table(["Marché","Axe","Fiches","Échant.","Nos produits bouillon","Nos produits mayonnaise","Concurrent en tête"],mk.map(m=>{
+    const Fm=F.filter(x=>x.marche===m&&x.type!=="PRIX"); const pb=shareBy(L({seg:"BOUILLON"}).filter(r=>r.fi.marche===m),r=>isOurs(r.marque),()=>1)[0], pm=shareBy(L({seg:"MAYONNAISE"}).filter(r=>r.fi.marche===m),r=>isOurs(r.marque),()=>1)[0];
+    const lead=agg(lines({...f}).filter(r=>r.fi.marche===m&&!isOurs(r.marque)),r=>brandOf(r.marque)).sort((a,b)=>b.score-a.score)[0];
+    const hasB=L({seg:"BOUILLON"}).some(r=>r.fi.marche===m), hasM=L({seg:"MAYONNAISE"}).some(r=>r.fi.marche===m);
+    return [m,uniq(Fm.map(x=>x.axe).filter(Boolean)).map(axeLabel).join(", ")||"-",{content:String(Fm.length),styles:{halign:"right"}},{content:T(ech(Fm).toLocaleString("fr-FR")),styles:{halign:"right"}},{content:hasB?pctTxt(pb?pb.rate:0):"-",styles:{halign:"right"}},{content:hasM?pctTxt(pm?pm.rate:0):"-",styles:{halign:"right"}},lead?lead.k:"-"]; }),{styles:{fontSize:7.5,cellPadding:1.4,font:"helvetica",textColor:INK,lineColor:[222,218,232],lineWidth:.15}});
+
+  // 6. Par agent
+  h1("6. Activité des agents");
+  const ag=uniq(F.map(x=>x.agent));
+  if(!ag.length) para("Aucune fiche sur la période.");
+  else table(["Agent","Fiches","Présence","Calebasse","Sondage conso.","Prix","Marchés","Échant. cumulé"],ag.map(a=>{ const Fa=F.filter(x=>x.agent===a); return [a,...[Fa.length,nT(Fa,"PRESENCE"),nT(Fa,"CALEBASSE"),nT(Fa,"SONDAGE"),nT(Fa,"PRIX"),new Set(Fa.map(x=>x.marche)).size,ech(Fa)].map(v=>({content:T(Number(v).toLocaleString("fr-FR")),styles:{halign:"right"}}))]; }));
+
+  // 7. Alertes
+  h1("7. Alertes marché");
+  if(!alerts.length) para("Aucune alerte : sur les marchés visités, aucun concurrent ne devance l'un de nos produits de 10 points ou plus.");
+  else table(["Marché","Date","Notre produit","Part","Concurrent en tête","Part","Écart"],alerts.map(a=>[a.marche,fmtDate(a.date),a.ours,{content:pctTxt(a.ro),styles:{halign:"right"}},a.comp,{content:pctTxt(a.rc),styles:{halign:"right"}},{content:Math.round(a.gap*100)+" pts",styles:{halign:"right",fontStyle:"bold",textColor:[192,57,43]}}]));
+
+  // 8. Prix
+  h1("8. Relevés de prix");
+  const PR=F.filter(x=>x.type==="PRIX");
+  if(!PR.length) para("Aucun relevé de prix sur la période.");
+  else{ const g=new Map(); for(const x of PR) for(const l of x.lignes||[]){ const k=x.segment+"|"+norm(l.produit); if(!g.has(k)) g.set(k,[]); g.get(k).push(l); }
+    const rows=[...g].map(([k,a])=>({seg:k.split("|")[0],p:k.split("|")[1],n:a.length,g:avg(a.map(l=>+l.prixGros||null)),d:avg(a.map(l=>+l.prixDemiGros||null)),r:avg(a.map(l=>+l.prixDetail||null)),c:avg(a.map(l=>+l.prixConso||null))})).sort((a,b)=>a.seg.localeCompare(b.seg)||isOurs(b.p)-isOurs(a.p)||(b.c||0)-(a.c||0));
+    table(["Segment","Produit","Relevés","Grossiste","½ gros","Détaillant","Prix conso."],rows.map(x=>[x.seg==="BOUILLON"?"Bouillon":"Mayonnaise",{content:x.p,styles:isOurs(x.p)?{fontStyle:"bold"}:{}},{content:String(x.n),styles:{halign:"right"}},{content:fcfaTxt(x.g),styles:{halign:"right"}},{content:fcfaTxt(x.d),styles:{halign:"right"}},{content:fcfaTxt(x.r),styles:{halign:"right"}},{content:fcfaTxt(x.c),styles:{halign:"right",fontStyle:"bold"}}]));
+    para("Moyennes des relevés de la période. Prix grossiste, ½ gros et détaillant au carton ; prix consommateur à l'unité de vente.",7.5); }
+
+  // 9. Veille concurrentielle
+  h1("9. Actions concurrentes signalées");
+  if(!A.length) para("Aucune action concurrente signalée sur la période.");
+  else table(["Date","Marché","Marque","Catégorie","Impact","Description"],[...A].sort((a,b)=>String(a.date).localeCompare(String(b.date))).map(v=>[fmtDate(v.date),v.marche||"-",v.marque,v.categorie,v.impact,v.description]),{columnStyles:{5:{cellWidth:70}}});
+
+  // 10. Observations
+  h1("10. Observations terrain");
+  const OB=F.filter(x=>(x.observations||"").trim());
+  if(!OB.length) para("Aucune observation saisie par les agents sur la période.");
+  else table(["Date","Marché","Agent","Étude","Observation"],OB.map(x=>[fmtDate(x.date),x.marche,x.agent,TYPES[x.type]||x.type,x.observations]),{columnStyles:{4:{cellWidth:80}}});
+
+  // Annexe
+  if(F.length){
+    doc.addPage(); y=18; h1("Annexe · Détail de toutes les fiches de la période");
+    table(["Date","Étude","Marché / axe","Agent","Éch.","Résultats (citations · part)"],F.map(x=>{
+      let res;
+      if(x.type==="PRIX") res=(x.lignes||[]).map(l=>`${norm(l.produit)} : ${fcfaTxt(+l.prixConso||null)}`).join(" ; ");
+      else { const Ls=(x.lignes||[]).filter(l=>+l.score>0).slice().sort((a,b)=>b.score-a.score); const rp=round100(Ls.map(l=>+l.score)); res=Ls.map((l,k)=>`${l.marque} ${l.score} (${rp[k]} %)`).join(" ; ")||"aucune citation"; }
+      return [fmtDate(x.date),`${TYPES[x.type]||x.type}\n${x.segment==="BOUILLON"?"Bouillon":"Mayonnaise"}`,`${x.marche}${x.axe?"\n"+axeLabel(x.axe):""}`,x.agent,{content:x.echantillon==null?"-":String(x.echantillon),styles:{halign:"right"}},res];
+    }),{styles:{fontSize:7,cellPadding:1.3,font:"helvetica",textColor:INK,lineColor:[222,218,232],lineWidth:.15},columnStyles:{0:{cellWidth:17},1:{cellWidth:26},2:{cellWidth:30},3:{cellWidth:24},4:{cellWidth:10},5:{cellWidth:"auto"}}});
+  }
+
+  // Pieds de page
+  const n=doc.getNumberOfPages();
+  for(let i=1;i<=n;i++){ doc.setPage(i); doc.setDrawColor(222,218,232); doc.line(M,287,W-M,287); doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(...MUT);
+    doc.text(T(`Oriba Foods · ${titre} · ${perLabel(f.mois)} · ${scope}`),M,291); doc.text(`Page ${i} / ${n}`,W-M,291,{align:"right"}); }
+  const slug=s=>T(s).normalize("NFKD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"_").replace(/^_|_$/g,"");
+  doc.save(`${slug(titre)}_${slug(f.mois.replace(/^[SJ]/,""))}${f.zone!=="TOUTES"?"_"+slug(f.zone):""}${f.axe!=="TOUS"?"_"+slug(axeLabel(f.axe)):""}.pdf`);
+}
+function reportAlerts(F){
+  const out=[];
+  for(const x of F){ if(x.type!=="PRESENCE") continue; const tot=(x.lignes||[]).reduce((a,l)=>a+(+l.score||0),0); if(!tot) continue;
+    const Ls=(x.lignes||[]).map(l=>({m:l.marque,r:(+l.score||0)/tot}));
+    const comp=Ls.filter(l=>!isOurs(l.m)).sort((a,b)=>b.r-a.r)[0]; if(!comp) continue;
+    for(const o of Ls.filter(l=>isOurs(l.m)&&(x.segment==="BOUILLON"||/1L$/i.test(l.m)))){ const gap=comp.r-o.r; if(gap>=.1) out.push({marche:x.marche,date:x.date,ours:ourOf(o.m)?.nom||o.m,ro:o.r,comp:comp.m,rc:comp.r,gap}); } }
+  return out.sort((a,b)=>b.gap-a.gap);
+}
+
 /* ---------- Événements ---------- */
 window.addEventListener("hashchange",show);
-["fZone","fMois"].forEach(id=>$(id).addEventListener("change",renderDashboard));
-["pSeg","pType","pZone","pMois","pFmt"].forEach(id=>$(id).addEventListener("change",renderPresence));
+["fZone","fAxe","fMois"].forEach(id=>$(id).addEventListener("change",renderDashboard));
+["pSeg","pType","pZone","pAxe","pMois","pFmt"].forEach(id=>$(id).addEventListener("change",renderPresence));
+$("axeTable").addEventListener("click",e=>{ const tr=e.target.closest("tr[data-axe]"); if(!tr) return; if($("fZone").value!=="NIAMEY"){ $("fZone").value="NIAMEY"; fillAxe($("fAxe"),"NIAMEY"); } $("fAxe").value=$("fAxe").value===tr.dataset.axe?"TOUS":tr.dataset.axe; renderDashboard(); });
+$("fAxeAdd").addEventListener("click",()=>{ const b=$("axeAddBox"); b.hidden=!b.hidden; if(!b.hidden){ $("axeAddMsg").textContent=""; $("axeAddIn").focus(); } });
+$("axeAddCancel").addEventListener("click",()=>{ $("axeAddBox").hidden=true; });
+$("axeAddBox").addEventListener("submit",async e=>{ e.preventDefault(); $("axeAddMsg").textContent="Ajout…";
+  try{ const nom=await addAxe($("axeAddIn").value,"NIAMEY"); $("axeAddIn").value=""; $("axeAddBox").hidden=true; $("fZone").value="NIAMEY"; renderDashboard(); $("fAxe").value=nom; renderDashboard(); }
+  catch(err){ $("axeAddMsg").textContent=err.message; } });
+$("fReport").addEventListener("click",()=>{ const m=$("fMois").value||"TOUS", k=pKind(m);
+  repKind=k==="S"?"S":k==="J"?"J":"M"; location.hash="rapports"; renderRapports();
+  if(k==="S") $("repWeek").value=m; else if(k==="M") $("repMonth").value=m;
+  $("repZone").value=$("fZone").value; fillAxe($("repAxe"),$("repZone").value); if(!$("fAxe").closest(".field").hidden) $("repAxe").value=$("fAxe").value; renderRapports(); });
+$("repKind").addEventListener("click",e=>{ const b=e.target.closest("button[data-k]"); if(!b) return; repKind=b.dataset.k; renderRapports(); });
+["repDay","repWeek","repMonth","repZone","repAxe"].forEach(id=>$(id).addEventListener("change",renderRapports));
+$("repForm").addEventListener("submit",e=>{ e.preventDefault(); genReport(); });
+$("sZone").addEventListener("input",fillAxeEntry);
+$("sAxe").addEventListener("change",()=>{ $("sAxeNew").hidden=$("sAxe").value!=="__NEW"; if(!$("sAxeNew").hidden) $("sAxeNew").focus(); });
+$("baseTable").addEventListener("change",async e=>{ const s=e.target.closest("select[data-setaxe]"); if(!s) return; s.disabled=true;
+  try{ await api("fiche.set_axe",{id:s.dataset.setaxe,axe:s.value}); toast("Axe enregistré"); await reload(); }catch(err){ toast(err.message); s.disabled=false; } });
 ["xSeg","xMarche","xRef"].forEach(id=>$(id).addEventListener("change",renderPrix));
 $("cSeg").addEventListener("change",renderConcurrence); $("vFilter").addEventListener("change",renderConcurrence);
 $("bType").addEventListener("change",renderBase); $("bSearch").addEventListener("input",renderBase);
